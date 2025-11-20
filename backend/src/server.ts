@@ -146,6 +146,31 @@ app.post('/api/ros/publish', (req: Request, res: Response) => {
   res.json({ success: true, message: 'Nachricht gesendet' });
 });
 
+// Command Endpoint - Verarbeitet Befehle vom Frontend
+app.post('/api/ros/command', (req: Request, res: Response) => {
+  const { command } = req.body;
+
+  if (!command || typeof command !== 'string') {
+    return res.status(400).json({ error: 'command ist erforderlich und muss ein String sein' });
+  }
+
+  if (!rosClient.isConnected) {
+    return res.status(503).json({ error: 'ROS nicht verbunden' });
+  }
+
+  console.log(`Befehl empfangen: ${command}`);
+
+  // Hier kannst du die Befehle verarbeiten
+  // Beispiel: Befehl an ROS publishen
+  // rosClient.publish('/commands', 'std_msgs/msg/String', { data: command });
+
+  // Für jetzt: Logge den Befehl und sende Bestätigung
+  res.json({ 
+    success: true, 
+    message: `Befehl '${command}' empfangen und verarbeitet`
+  });
+});
+
 // Server-Sent Events (SSE) für Bilder (30 FPS)
 // Sendet nur Bild-Nachrichten über diesen Stream
 app.get('/api/ros/stream', (req: Request, res: Response) => {
@@ -207,6 +232,7 @@ server.listen(PORT, () => {
   console.log(`API Endpoints:`);
   console.log(`  POST /api/ros/subscribe - Subscribe zu ROS Topic`);
   console.log(`  POST /api/ros/publish - Publish ROS Message`);
+  console.log(`  POST /api/ros/command - Sende Befehl an ROS`);
   console.log(`  GET /api/ros/stream - Server-Sent Events Stream für Bilder (30 FPS)`);
   console.log(`  WS /api/ros/logs-ws - WebSocket für Log-Nachrichten (Echtzeit)`);
 });

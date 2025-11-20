@@ -75,6 +75,66 @@ h1 {
   cursor: not-allowed;
 }
 
+.command-container {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.command-container h2 {
+  margin-bottom: 12px;
+  color: #333;
+  font-size: 18px;
+}
+
+.command-form {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.command-input {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.command-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.command-input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+  color: #9ca3af;
+}
+
+.command-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.command-button:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.command-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
 .log-container {
   margin-top: 24px;
 }

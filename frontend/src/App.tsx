@@ -18,6 +18,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [robotImageSrc, setRobotImageSrc] = useState<string | null>(null);
+  const [commandInput, setCommandInput] = useState<string>('');
   const lastTimestampRef = useRef<number>(0);
   const lastLogTimeRef = useRef<number>(0);
   const logThrottleMs = 1000; // Maximal 1 Log pro Sekunde für Bild-Updates
@@ -202,6 +203,35 @@ function App() {
     setRobotImageSrc(newSrc);
   };
 
+  const handleCommandSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commandInput.trim()) return;
+
+    const command = commandInput.trim();
+    setCommandInput('');
+    addLog(`📤 Sende Befehl: ${command}`);
+
+    try {
+      const response = await fetch('/api/ros/command', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ command }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        addLog(`✓ Befehl erfolgreich: ${data.message || 'Ausgeführt'}`);
+      } else {
+        addLog(`✗ Fehler: ${data.error || 'Unbekannter Fehler'}`);
+      }
+    } catch (error) {
+      addLog(`✗ Fehler: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   return (
     <div className="app">
       <h1>ROS2 Web Demo</h1>
@@ -250,6 +280,27 @@ function App() {
         >
           Nachricht publishen
         </button>
+      </div>
+
+      <div className="command-container">
+        <h2>Befehl senden</h2>
+        <form onSubmit={handleCommandSubmit} className="command-form">
+          <input
+            type="text"
+            value={commandInput}
+            onChange={(e) => setCommandInput(e.target.value)}
+            placeholder="Befehl eingeben..."
+            className="command-input"
+            disabled={status !== 'verbunden'}
+          />
+          <button
+            type="submit"
+            disabled={!commandInput.trim() || status !== 'verbunden' || isLoading}
+            className="command-button"
+          >
+            Senden
+          </button>
+        </form>
       </div>
 
       <div className="log-container">

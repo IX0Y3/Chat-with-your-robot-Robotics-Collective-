@@ -14,14 +14,36 @@ h1 {
   margin-bottom: 20px;
 }
 
+.status-grid {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-label {
+  font-weight: 500;
+  color: #374151;
+}
+
 .status {
   font-weight: bold;
   padding: 4px 8px;
   border-radius: 4px;
+  text-transform: capitalize;
 }
 
 .status-connected {
   color: #22c55e;
+}
+
+.status-connecting {
+  color: #f59e0b;
 }
 
 .status-disconnected {

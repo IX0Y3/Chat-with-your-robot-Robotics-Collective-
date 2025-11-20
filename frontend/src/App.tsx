@@ -1,19 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
-
-interface LogEntry {
-  timestamp: string;
-  message: string;
-}
-
-interface ROSMessage {
-  topic: string;
-  message: any;
-  timestamp: number;
-}
+import { LogView, LogEntry } from './components/LogView';
+import { StatusView, ConnectionStatus } from './components/StatusView';
 
 function App() {
-  const [status, setStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
+  const [streamStatus, setStreamStatus] = useState<ConnectionStatus>('disconnected');
+  const [commandStatus, setCommandStatus] = useState<ConnectionStatus>('disconnected');
+  const [logStatus, setLogStatus] = useState<ConnectionStatus>('disconnected');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -31,14 +24,21 @@ function App() {
     setRobotImageSrc(newSrc);
   }, []);
 
+  // Clear logs on component mount (page reload)
+  useEffect(() => {
+    setLogs([]);
+  }, []);
+  
+
   // Dedicated Server-Sent Events (SSE) stream for camera blobs
   // Starts immediately on component mount (camera subscription is automatic in backend)
   useEffect(() => {
-
+    setStreamStatus('connecting');
     addLog('🔄 Connecting to camera stream...');
     const eventSource = new EventSource(`/api/ros/camera-stream?since=${lastTimestampRef.current}`);
 
     eventSource.onopen = () => {
+      setStreamStatus('connected');
       addLog('✓ Camera stream connected');
     };
 
@@ -78,10 +78,12 @@ function App() {
 
     eventSource.onerror = (error) => {
       console.error('Camera stream error:', error);
+      setStreamStatus('error');
       addLog('⚠️ Connection error to camera stream');
     };
 
     return () => {
+      setStreamStatus('disconnected');
       addLog('🔌 Camera stream disconnected');
       eventSource.close();
       // Cleanup blob URL on unmount
@@ -96,6 +98,7 @@ function App() {
   useEffect(() => {
     const subscribeToRosout = async () => {
       setIsLoading(true);
+      setCommandStatus('connecting');
       addLog('🔄 Auto-subscribing to /rosout...');
 
       try {
@@ -113,16 +116,16 @@ function App() {
         const data = await response.json();
 
         if (response.ok) {
-          setStatus('connected');
+          setCommandStatus('connected');
           setIsSubscribed(true);
           addLog(`✓ ${data.message}`);
         } else {
-          setStatus('error');
+          setCommandStatus('error');
           setIsSubscribed(false);
           addLog(`✗ Error: ${data.error}`);
         }
       } catch (error) {
-        setStatus('error');
+        setCommandStatus('error');
         addLog(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsLoading(false);
@@ -132,47 +135,6 @@ function App() {
     subscribeToRosout();
   }, []);
 
-  // WebSocket for log messages (not images) - more efficient than polling
-  useEffect(() => {
-    if (!isSubscribed) return;
-
-    addLog('🔄 Connecting to WebSocket for logs...');
-    
-    // WebSocket URL: Vite proxy forwards /api
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.host;
-    const ws = new WebSocket(`${wsProtocol}//${wsHost}/api/ros/logs-ws`);
-
-    ws.onopen = () => {
-      addLog('✓ WebSocket for logs connected');
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const rosMessage: ROSMessage = JSON.parse(event.data);
-        
-        // Formatted display of message
-        const textMessageContent = rosMessage.message.msg;
-        addLog(`📨 [${rosMessage.topic}] ${textMessageContent}`);
-        lastTimestampRef.current = rosMessage.timestamp;
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      addLog('⚠️ WebSocket error for logs');
-    };
-
-    ws.onclose = () => {
-      addLog('🔌 WebSocket for logs disconnected');
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, [isSubscribed]);
 
 
   const handleCommandSubmit = async (e: React.FormEvent) => {
@@ -227,14 +189,11 @@ function App() {
         )}
       </div>
       
-      <div className="status-container">
-        <p>
-          Status:{' '}
-          <span className={`status status-${status.toLowerCase()}`}>
-            {status}
-          </span>
-        </p>
-      </div>
+      <StatusView 
+        streamStatus={streamStatus}
+        commandStatus={commandStatus}
+        logStatus={logStatus}
+      />
 
       <div className="command-container">
         <h2>Send Command</h2>
@@ -246,18 +205,18 @@ function App() {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                if (commandInput.trim() && status === 'connected' && !isLoading) {
+                if (commandInput.trim() && commandStatus === 'connected' && !isLoading) {
                   handleCommandSubmit(e as any);
                 }
               }
             }}
             placeholder="Enter command..."
             className="command-input"
-            disabled={status !== 'connected'}
+            disabled={commandStatus !== 'connected'}
           />
           <button
             type="submit"
-            disabled={!commandInput.trim() || status !== 'connected' || isLoading}
+            disabled={!commandInput.trim() || commandStatus !== 'connected' || isLoading}
             className="command-button"
           >
             Send
@@ -265,16 +224,12 @@ function App() {
         </form>
       </div>
 
-      <div className="log-container">
-        <h2>Log</h2>
-        <pre className="log">
-          {logs.length === 0 ? 'No logs...' : logs.map((log, index) => (
-            <div key={index}>
-              [{log.timestamp}] {log.message}
-            </div>
-          ))}
-        </pre>
-      </div>
+      <LogView 
+        logs={logs} 
+        isSubscribed={isSubscribed} 
+        onLog={addLog}
+        onStatusChange={setLogStatus}
+      />
     </div>
   );
 }

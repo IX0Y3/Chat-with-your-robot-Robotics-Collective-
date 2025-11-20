@@ -3,9 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import type { Response as ExpressResponse } from 'express';
 import { ROSClient } from './ros/rosClient.js';
-import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { setupCameraStreamEndpoint, setupCameraSubscription } from './stream/cameraStream.js';
+import { setupLogWebSocket, sendMessageToClients } from './websocket/logWebSocket.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,30 +20,14 @@ const server = createServer(app);
 const rosMessages: Array<{ topic: string; message: any; timestamp: number }> = [];
 const MAX_MESSAGES = 100; // Maximum 100 messages to store
 
-// WebSocket Server for log messages (non-images)
-const wss = new WebSocketServer({ 
-  server,
-  path: '/api/ros/logs-ws'
-});
+// Setup WebSocket server for log messages
+setupLogWebSocket(server);
 
-const logClients = new Set<WebSocket>();
-
-wss.on('connection', (ws: WebSocket) => {
-  console.log('WebSocket client for logs connected');
-  logClients.add(ws);
-  
-  ws.on('close', () => {
-    console.log('WebSocket client for logs disconnected');
-    logClients.delete(ws);
-  });
-  
-  ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
-    logClients.delete(ws);
-  });
-});
-
-// Helper: Store message and send to WebSocket clients
+/**
+ * Store message and send to WebSocket clients
+ * @param topic The topic of the message
+ * @param message The message to store
+ */
 const addRosMessage = (topic: string, message: any) => {
   const timestamp = Date.now();
   const msg = {
@@ -59,15 +43,8 @@ const addRosMessage = (topic: string, message: any) => {
     rosMessages.shift();
   }
   
-  // Send all messages via WebSocket (except camera topic, which has its own stream)
-  if (topic !== '/camera/color/image_raw/compressed' && logClients.size > 0) {
-    const data = JSON.stringify(msg);
-    logClients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(data);
-      }
-    });
-  }
+  // Send message to WebSocket clients
+  sendMessageToClients(topic, message, timestamp);
 };
 
 

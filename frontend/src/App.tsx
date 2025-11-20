@@ -20,8 +20,6 @@ function App() {
   const [robotImageSrc, setRobotImageSrc] = useState<string | null>(null);
   const [commandInput, setCommandInput] = useState<string>('');
   const lastTimestampRef = useRef<number>(0);
-  const lastLogTimeRef = useRef<number>(0);
-  const logThrottleMs = 1000; // Maximum 1 log per second for image updates
   const currentBlobUrlRef = useRef<string | null>(null); // For cleanup of blob URLs
 
   const addLog = (message: string) => {
@@ -72,9 +70,6 @@ function App() {
           
           currentBlobUrlRef.current = blobUrl;
           handleImageChange(blobUrl);
-          
-          // Log only on image change and with throttling
-          const now = Date.now();
         }
       } catch (error) {
         console.error('Error processing camera blob data:', error);

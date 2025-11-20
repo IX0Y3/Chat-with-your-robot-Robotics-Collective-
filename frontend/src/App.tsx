@@ -13,7 +13,7 @@ interface ROSMessage {
 }
 
 function App() {
-  const [status, setStatus] = useState<'getrennt' | 'verbunden' | 'Fehler'>('getrennt');
+  const [status, setStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -21,8 +21,8 @@ function App() {
   const [commandInput, setCommandInput] = useState<string>('');
   const lastTimestampRef = useRef<number>(0);
   const lastLogTimeRef = useRef<number>(0);
-  const logThrottleMs = 1000; // Maximal 1 Log pro Sekunde für Bild-Updates
-  const currentBlobUrlRef = useRef<string | null>(null); // Für Cleanup von Blob-URLs
+  const logThrottleMs = 1000; // Maximum 1 log per second for image updates
+  const currentBlobUrlRef = useRef<string | null>(null); // For cleanup of blob URLs
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -33,25 +33,25 @@ function App() {
     setRobotImageSrc(newSrc);
   }, []);
 
-  // Dedizierter Server-Sent Events (SSE) Stream für Kamera-Blobs
+  // Dedicated Server-Sent Events (SSE) stream for camera blobs
   useEffect(() => {
     if (!isSubscribed) return;
 
-    addLog('🔄 Verbinde mit Kamera-Stream...');
+    addLog('🔄 Connecting to camera stream...');
     const eventSource = new EventSource(`/api/ros/camera-stream?since=${lastTimestampRef.current}`);
 
     eventSource.onopen = () => {
-      addLog('✓ Kamera-Stream verbunden');
+      addLog('✓ Camera stream connected');
     };
 
     eventSource.onmessage = (event) => {
-      console.log('Kamera-Stream Nachricht erhalten');
+      console.log('Camera stream message received');
       try {
         const blobData = JSON.parse(event.data);
         
-        // Backend sendet Base64-Daten, wir erstellen daraus eine Blob-URL
+        // Backend sends Base64 data, we create a blob URL from it
         if (blobData.data && typeof blobData.data === 'string') {
-          // Konvertiere Base64-String zu Uint8Array
+          // Convert Base64 string to Uint8Array
           const base64Data = blobData.data;
           const binaryString = atob(base64Data);
           const bytes = new Uint8Array(binaryString.length);
@@ -59,13 +59,13 @@ function App() {
             bytes[i] = binaryString.charCodeAt(i);
           }
           
-          // Erstelle Blob aus Uint8Array
+          // Create blob from Uint8Array
           const blob = new Blob([bytes], { type: 'image/jpeg' });
           
-          // Erstelle Blob-URL (die im <img> Element verwendet werden kann)
+          // Create blob URL (can be used in <img> element)
           const blobUrl = URL.createObjectURL(blob);
           
-          // Cleanup alte Blob-URL
+          // Cleanup old blob URL
           if (currentBlobUrlRef.current) {
             URL.revokeObjectURL(currentBlobUrlRef.current);
           }
@@ -73,27 +73,27 @@ function App() {
           currentBlobUrlRef.current = blobUrl;
           handleImageChange(blobUrl);
           
-          // Log nur bei Bildänderung und mit Throttling
+          // Log only on image change and with throttling
           const now = Date.now();
           if ((now - lastLogTimeRef.current) > logThrottleMs) {
-            addLog(`🖼️ Kamera-Bild aktualisiert (${bytes.length} bytes)`);
+            addLog(`🖼️ Camera image updated (${bytes.length} bytes)`);
             lastLogTimeRef.current = now;
           }
         }
       } catch (error) {
-        console.error('Fehler beim Verarbeiten der Kamera-Blob-Daten:', error);
+        console.error('Error processing camera blob data:', error);
       }
     };
 
     eventSource.onerror = (error) => {
-      console.error('Kamera-Stream Fehler:', error);
-      addLog('⚠️ Verbindungsfehler zu Kamera-Stream');
+      console.error('Camera stream error:', error);
+      addLog('⚠️ Connection error to camera stream');
     };
 
     return () => {
-      addLog('🔌 Kamera-Stream getrennt');
+      addLog('🔌 Camera stream disconnected');
       eventSource.close();
-      // Cleanup Blob-URL beim Unmount
+      // Cleanup blob URL on unmount
       if (currentBlobUrlRef.current) {
         URL.revokeObjectURL(currentBlobUrlRef.current);
         currentBlobUrlRef.current = null;
@@ -101,43 +101,43 @@ function App() {
     };
   }, [isSubscribed, handleImageChange]);
 
-  // WebSocket für Log-Nachrichten (nicht Bilder) - effizienter als Polling
+  // WebSocket for log messages (not images) - more efficient than polling
   useEffect(() => {
     if (!isSubscribed) return;
 
-    addLog('🔄 Verbinde mit WebSocket für Logs...');
+    addLog('🔄 Connecting to WebSocket for logs...');
     
-    // WebSocket-URL: Vite Proxy leitet /api weiter
+    // WebSocket URL: Vite proxy forwards /api
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsHost = window.location.host;
     const ws = new WebSocket(`${wsProtocol}//${wsHost}/api/ros/logs-ws`);
 
     ws.onopen = () => {
-      addLog('✓ WebSocket für Logs verbunden');
+      addLog('✓ WebSocket for logs connected');
     };
 
     ws.onmessage = (event) => {
       try {
         const msg: ROSMessage = JSON.parse(event.data);
         
-        // Formatierte Anzeige der Nachricht
+        // Formatted display of message
         const messageStr = typeof msg.message === 'object' 
           ? JSON.stringify(msg.message, null, 2)
           : String(msg.message);
         addLog(`📨 [${msg.topic}] ${messageStr}`);
         lastTimestampRef.current = msg.timestamp;
       } catch (error) {
-        console.error('Fehler beim Parsen der WebSocket-Nachricht:', error);
+        console.error('Error parsing WebSocket message:', error);
       }
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket Fehler:', error);
-      addLog('⚠️ WebSocket-Fehler für Logs');
+      console.error('WebSocket error:', error);
+      addLog('⚠️ WebSocket error for logs');
     };
 
     ws.onclose = () => {
-      addLog('🔌 WebSocket für Logs getrennt');
+      addLog('🔌 WebSocket for logs disconnected');
     };
 
     return () => {
@@ -147,7 +147,7 @@ function App() {
 
   const handleSubscribe = async () => {
     setIsLoading(true);
-    addLog('Subscribing zu /example_topic...');
+    addLog('Subscribing to /example_topic...');
 
     try {
       const response = await fetch('/api/ros/subscribe', {
@@ -164,56 +164,24 @@ function App() {
       const data = await response.json();
 
       if (response.ok) {
-        setStatus('verbunden');
+        setStatus('connected');
         setIsSubscribed(true);
         addLog(`✓ ${data.message}`);
-        addLog(`Verbindungsstatus: ${data.connected ? 'verbunden' : 'nicht verbunden'}`);
-        addLog('🔄 Starte Polling für ROS-Nachrichten...');
+        addLog(`Connection status: ${data.connected ? 'connected' : 'not connected'}`);
+        addLog('🔄 Starting polling for ROS messages...');
       } else {
-        setStatus('Fehler');
+        setStatus('error');
         setIsSubscribed(false);
-        addLog(`✗ Fehler: ${data.error}`);
+        addLog(`✗ Error: ${data.error}`);
       }
     } catch (error) {
-      setStatus('Fehler');
-      addLog(`✗ Fehler: ${error instanceof Error ? error.message : String(error)}`);
+      setStatus('error');
+      addLog(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePublish = async () => {
-    setIsLoading(true);
-    addLog('Publishe Nachricht...');
-
-    try {
-      const response = await fetch('/api/ros/publish', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          topic: '/example_topic',
-          messageType: 'std_msgs/msg/String',
-          message: {
-            data: 'Hallo aus dem React Frontend!'
-          },
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        addLog(`✓ ${data.message}`);
-      } else {
-        addLog(`✗ Fehler: ${data.error}`);
-      }
-    } catch (error) {
-      addLog(`✗ Fehler: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
 
   const handleCommandSubmit = async (e: React.FormEvent) => {
@@ -222,7 +190,7 @@ function App() {
 
     const command = commandInput.trim();
     setCommandInput('');
-    addLog(`📤 Sende Befehl: ${command}`);
+    addLog(`📤 Sending command: ${command}`);
 
     try {
       const response = await fetch('/api/ros/command', {
@@ -236,12 +204,12 @@ function App() {
       const data = await response.json();
 
       if (response.ok) {
-        addLog(`✓ Befehl erfolgreich: ${data.message || 'Ausgeführt'}`);
+        addLog(`✓ Command successful: ${data.message || 'Executed'}`);
       } else {
-        addLog(`✗ Fehler: ${data.error || 'Unbekannter Fehler'}`);
+        addLog(`✗ Error: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
-      addLog(`✗ Fehler: ${error instanceof Error ? error.message : String(error)}`);
+      addLog(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -257,13 +225,13 @@ function App() {
             alt="Robot Image" 
             className="robot-image"
             onError={() => {
-              // Wenn Bild nicht geladen werden kann, zeige schwarzen Kasten
+              // If image cannot be loaded, show placeholder
               handleImageChange(null);
             }}
           />
         ) : (
           <div className="robot-image-placeholder">
-            <span>Kein Signal</span>
+            <span>No Signal</span>
           </div>
         )}
       </div>
@@ -283,35 +251,27 @@ function App() {
           disabled={isLoading}
           className="subscribe-button"
         >
-          {isLoading ? 'Verbinde...' : 'Zu ROS Topic subscriben'}
-        </button>
-        
-        <button
-          onClick={handlePublish}
-          disabled={isLoading || status !== 'verbunden'}
-          className="publish-button"
-        >
-          Nachricht publishen
+          {isLoading ? 'Connecting...' : 'Subscribe to ROS Topic'}
         </button>
       </div>
 
       <div className="command-container">
-        <h2>Befehl senden</h2>
+        <h2>Send Command</h2>
         <form onSubmit={handleCommandSubmit} className="command-form">
           <input
             type="text"
             value={commandInput}
             onChange={(e) => setCommandInput(e.target.value)}
-            placeholder="Befehl eingeben..."
+            placeholder="Enter command..."
             className="command-input"
-            disabled={status !== 'verbunden'}
+            disabled={status !== 'connected'}
           />
           <button
             type="submit"
-            disabled={!commandInput.trim() || status !== 'verbunden' || isLoading}
+            disabled={!commandInput.trim() || status !== 'connected' || isLoading}
             className="command-button"
           >
-            Senden
+            Send
           </button>
         </form>
       </div>
@@ -319,7 +279,7 @@ function App() {
       <div className="log-container">
         <h2>Log</h2>
         <pre className="log">
-          {logs.length === 0 ? 'Keine Logs...' : logs.map((log, index) => (
+          {logs.length === 0 ? 'No logs...' : logs.map((log, index) => (
             <div key={index}>
               [{log.timestamp}] {log.message}
             </div>

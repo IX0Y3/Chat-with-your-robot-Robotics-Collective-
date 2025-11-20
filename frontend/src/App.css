@@ -20,15 +20,15 @@ h1 {
   border-radius: 4px;
 }
 
-.status-verbunden {
+.status-connected {
   color: #22c55e;
 }
 
-.status-getrennt {
+.status-disconnected {
   color: #6b7280;
 }
 
-.status-fehler {
+.status-error {
   color: #ef4444;
 }
 

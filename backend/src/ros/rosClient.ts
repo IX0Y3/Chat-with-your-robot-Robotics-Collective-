@@ -1,4 +1,4 @@
-// @ts-ignore - roslib hat keine Type-Definitionen
+// @ts-ignore - roslib has no type definitions
 import { Ros, Topic } from 'roslib';
 
 export class ROSClient {
@@ -9,53 +9,53 @@ export class ROSClient {
   constructor(url: string = 'ws://localhost:9090') {
     this.ros = new Ros({ url });
     
-    console.log(`ROS Client initialisiert, verbinde mit ${url}...`);
-    console.log(`Initialer Verbindungsstatus: ${this.ros.isConnected}`);
+    console.log(`ROS Client initialized, connecting to ${url}...`);
+    console.log(`Initial connection status: ${this.ros.isConnected}`);
     
     this.ros.on('connection', () => {
-      console.log('✓ ROS verbunden!');
+      console.log('✓ ROS connected!');
     });
 
     this.ros.on('error', (error: Error) => {
-      console.error('✗ ROS Fehler:', error);
+      console.error('✗ ROS error:', error);
     });
 
     this.ros.on('close', () => {
-      console.log('⚠ ROS Verbindung geschlossen');
+      console.log('⚠ ROS connection closed');
     });
   }
 
   subscribe(topicName: string, messageType: string, handler: (message: any) => void): void {
-    console.log(`Subscribe zu ${topicName} (${messageType}), ROS verbunden: ${this.ros.isConnected}`);
+    console.log(`Subscribe to ${topicName} (${messageType}), ROS connected: ${this.ros.isConnected}`);
     
-    // Wenn bereits subscribed, nur Handler aktualisieren
+    // If already subscribed, only update handler
     if (this.topics.has(topicName)) {
-      console.log(`Handler für ${topicName} aktualisiert`);
+      console.log(`Handler for ${topicName} updated`);
       this.handlers.set(topicName, handler);
       return;
     }
 
-    // Neues Topic erstellen und subscriben
+    // Create new topic and subscribe
     const topic = new Topic({
       ros: this.ros,
       name: topicName,
       messageType: messageType
     });
 
-    console.log(`Topic erstellt: ${topicName}, starte Subscription...`);
+    console.log(`Topic created: ${topicName}, starting subscription...`);
     topic.subscribe((message: any) => {
-      console.log(`📨 Nachricht empfangen auf ${topicName}:`, message);
+      console.log(`📨 Message received on ${topicName}:`, message);
       const handler = this.handlers.get(topicName);
       if (handler) {
         handler(message);
       }
     });
 
-    // Topic und Handler speichern
+    // Store topic and handler
     this.topics.set(topicName, topic);
     this.handlers.set(topicName, handler);
     
-    console.log(`✓ Subscription zu ${topicName} aktiv (total: ${this.topics.size} Topics)`);
+    console.log(`✓ Subscription to ${topicName} active (total: ${this.topics.size} topics)`);
   }
 
   unsubscribe(topicName: string): void {
@@ -69,8 +69,8 @@ export class ROSClient {
   }
 
   publish(topicName: string, messageType: string, message: any): void {
-    console.log(`Publishe auf ${topicName} (${messageType}):`, message);
-    console.log(`ROS verbunden: ${this.ros.isConnected}`);
+    console.log(`Publishing to ${topicName} (${messageType}):`, message);
+    console.log(`ROS connected: ${this.ros.isConnected}`);
     
     const topic = new Topic({
       ros: this.ros,
@@ -79,7 +79,7 @@ export class ROSClient {
     });
     
     topic.publish(message);
-    console.log(`✓ Nachricht publiziert auf ${topicName}`);
+    console.log(`✓ Message published to ${topicName}`);
   }
 
   get isConnected(): boolean {

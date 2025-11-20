@@ -92,7 +92,7 @@ export const setupCameraStreamEndpoint = (app: Express): void => {
     // Cleanup in case of client disconnect
     req.on('close', () => {
       clearInterval(interval);
-      console.log(`SSE Client for camera-stream discnnnected`);
+      console.log(`SSE Client for camera-stream disconnected`);
       res.end();
     });
   });

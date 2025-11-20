@@ -92,13 +92,33 @@ app.post('/api/ros/publish', (req: Request, res: Response) => {
   res.json({ success: true, message: 'Nachricht gesendet' });
 });
 
-// Endpoint zum Abrufen von ROS-Nachrichten
+// Helper: Prüft ob eine Nachricht ein Bild enthält
+const isImageMessage = (message: any): boolean => {
+  if (!message || typeof message !== 'object') return false;
+  
+  if (message.image_url || message.imageUrl) return true;
+  if (message.url && typeof message.url === 'string' && 
+      (message.url.startsWith('http') || message.url.startsWith('data:image'))) return true;
+  if (message.data && typeof message.data === 'string' && 
+      (message.data.startsWith('data:image') || message.data.startsWith('http'))) return true;
+  
+  return false;
+};
+
+// Endpoint zum Abrufen von ROS-Nachrichten (für Polling, ohne Bilder)
 app.get('/api/ros/messages', (req: Request, res: Response) => {
   const since = req.query.since ? parseInt(req.query.since as string) : 0;
-  const filteredMessages = rosMessages.filter(msg => msg.timestamp > since);
+  const excludeImages = req.query.excludeImages === 'true';
+  
+  let filteredMessages = rosMessages.filter(msg => msg.timestamp > since);
+  
+  // Filtere Bilder raus, wenn excludeImages=true
+  if (excludeImages) {
+    filteredMessages = filteredMessages.filter(msg => !isImageMessage(msg.message));
+  }
   
   // Debug: Logge wie viele Nachrichten gespeichert sind
-  console.log(`GET /api/ros/messages: since=${since}, total=${rosMessages.length}, filtered=${filteredMessages.length}`);
+  console.log(`GET /api/ros/messages: since=${since}, excludeImages=${excludeImages}, total=${rosMessages.length}, filtered=${filteredMessages.length}`);
   
   res.setHeader('Content-Type', 'application/json');
   res.json({
@@ -107,11 +127,68 @@ app.get('/api/ros/messages', (req: Request, res: Response) => {
   });
 });
 
+// Server-Sent Events (SSE) für Bilder (30 FPS)
+// Sendet nur Bild-Nachrichten über diesen Stream
+app.get('/api/ros/stream', (req: Request, res: Response) => {
+  // SSE Headers setzen
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Nginx buffering deaktivieren
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+  
+  console.log('SSE Client verbunden (nur Bilder)');
+
+  let lastTimestamp = req.query.since ? parseInt(req.query.since as string) : 0;
+  let messageCount = 0;
+
+  // Sende initiale Nachrichten (nur Bilder)
+  const sendMessages = () => {
+    try {
+      // Filtere nur Bild-Nachrichten
+      const filteredMessages = rosMessages
+        .filter(msg => msg.timestamp > lastTimestamp)
+        .filter(msg => isImageMessage(msg.message));
+      
+      if (filteredMessages.length > 0) {
+        filteredMessages.forEach((msg) => {
+          res.write(`data: ${JSON.stringify(msg)}\n\n`);
+          lastTimestamp = msg.timestamp;
+          messageCount++;
+        });
+        console.log(`SSE (Bilder): ${filteredMessages.length} Bilder gesendet (total: ${messageCount})`);
+      }
+    } catch (error) {
+      console.error('SSE Fehler beim Senden:', error);
+    }
+  };
+
+  // Initiale Nachrichten senden
+  sendMessages();
+
+  // Prüfe alle 33ms (ca. 30 FPS) nach neuen Nachrichten
+  const interval = setInterval(() => {
+    if (req.socket.destroyed || req.closed) {
+      clearInterval(interval);
+      return;
+    }
+    sendMessages();
+  }, 33);
+
+  // Cleanup bei Verbindungsabbruch
+  req.on('close', () => {
+    clearInterval(interval);
+    console.log(`SSE Client getrennt (${messageCount} Bilder gesendet)`);
+    res.end();
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
   console.log(`API Endpoints:`);
   console.log(`  POST /api/ros/subscribe - Subscribe zu ROS Topic`);
   console.log(`  POST /api/ros/publish - Publish ROS Message`);
-  console.log(`  GET /api/ros/messages - Abrufe ROS Nachrichten`);
+  console.log(`  GET /api/ros/messages - Abrufe ROS Nachrichten (Polling)`);
+  console.log(`  GET /api/ros/stream - Server-Sent Events Stream (Echtzeit)`);
 });
 

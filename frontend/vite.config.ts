@@ -9,6 +9,15 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            // Für SSE: keine Buffering
+            if (req.url?.includes('/api/ros/stream')) {
+              proxyReq.setHeader('Connection', 'keep-alive');
+              proxyReq.setHeader('Cache-Control', 'no-cache');
+            }
+          });
+        },
       },
     },
   },

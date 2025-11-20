@@ -17,22 +17,81 @@ function App() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [robotImageSrc, setRobotImageSrc] = useState<string | null>(null);
   const lastTimestampRef = useRef<number>(0);
+  const lastLogTimeRef = useRef<number>(0);
+  const logThrottleMs = 1000; // Maximal 1 Log pro Sekunde für Bild-Updates
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs((prev) => [...prev, { timestamp, message }]);
   };
 
-  // Polling für ROS-Nachrichten vom Backend
+  // Server-Sent Events (SSE) für Bilder (30 FPS)
+  // Backend sendet bereits nur Bilder über diesen Stream
+  useEffect(() => {
+    if (!isSubscribed) return;
+
+    addLog('🔄 Verbinde mit SSE-Stream für Bilder...');
+    const eventSource = new EventSource(`/api/ros/stream?since=${lastTimestampRef.current}`);
+
+    eventSource.onopen = () => {
+      addLog('✓ SSE-Stream für Bilder verbunden');
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const msg: ROSMessage = JSON.parse(event.data);
+        
+        // Backend sendet nur Bilder, also direkt verarbeiten
+        if (msg.message && typeof msg.message === 'object') {
+          let imageUrl: string | null = null;
+          
+          if (msg.message.image_url) imageUrl = msg.message.image_url;
+          else if (msg.message.imageUrl) imageUrl = msg.message.imageUrl;
+          else if (msg.message.url) imageUrl = msg.message.url;
+          else if (msg.message.data) {
+            if (typeof msg.message.data === 'string' && msg.message.data.startsWith('data:image')) {
+              imageUrl = msg.message.data;
+            } else if (typeof msg.message.data === 'string' && msg.message.data.startsWith('http')) {
+              imageUrl = msg.message.data;
+            }
+          }
+          
+          if (imageUrl && typeof imageUrl === 'string') {
+            handleImageChange(imageUrl);
+            // Log nur bei Bildänderung und mit Throttling
+            const now = Date.now();
+            if (robotImageSrc !== imageUrl && (now - lastLogTimeRef.current) > logThrottleMs) {
+              addLog(`🖼️ Bild aktualisiert von ${msg.topic}`);
+              lastLogTimeRef.current = now;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Fehler beim Parsen der SSE-Nachricht:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE Fehler:', error);
+      addLog('⚠️ Verbindungsfehler zu Bild-Stream');
+    };
+
+    return () => {
+      addLog('🔌 SSE-Stream getrennt');
+      eventSource.close();
+    };
+  }, [isSubscribed, robotImageSrc]);
+
+  // Polling für andere Nachrichten (nicht Bilder)
   useEffect(() => {
     if (!isSubscribed) return;
 
     const pollMessages = async () => {
       try {
-        const response = await fetch(`/api/ros/messages?since=${lastTimestampRef.current}`);
+        const response = await fetch(`/api/ros/messages?since=${lastTimestampRef.current}&excludeImages=true`);
         
-        // Prüfe ob Response OK ist und Content-Type JSON ist
         if (!response.ok) {
           const text = await response.text();
           console.error('API Fehler:', response.status, text);
@@ -41,16 +100,12 @@ function App() {
 
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          const text = await response.text();
-          console.error('Unerwarteter Content-Type:', contentType, text.substring(0, 100));
           return;
         }
 
         const data = await response.json();
         
-        // Debug: Zeige wie viele Nachrichten gefunden wurden
         if (data.messages && data.messages.length > 0) {
-          console.log(`Polling: ${data.messages.length} neue Nachrichten gefunden`);
           data.messages.forEach((msg: ROSMessage) => {
             // Formatierte Anzeige der Nachricht
             const messageStr = typeof msg.message === 'object' 
@@ -62,10 +117,6 @@ function App() {
         }
       } catch (error) {
         console.error('Fehler beim Abrufen der Nachrichten:', error);
-        // Nur einmal loggen, nicht bei jedem Poll
-        if (error instanceof Error && !error.message.includes('JSON')) {
-          addLog(`⚠️ Fehler beim Abrufen der Nachrichten: ${error.message}`);
-        }
       }
     };
 
@@ -148,9 +199,32 @@ function App() {
     }
   };
 
+  const handleImageChange = (newSrc: string | null) => {
+    setRobotImageSrc(newSrc);
+  };
+
   return (
     <div className="app">
       <h1>ROS2 Web Demo</h1>
+      
+      <div className="robot-image-container">
+        {robotImageSrc ? (
+          <img 
+            id="robot-image" 
+            src={robotImageSrc} 
+            alt="Robot Image" 
+            className="robot-image"
+            onError={() => {
+              // Wenn Bild nicht geladen werden kann, zeige schwarzen Kasten
+              handleImageChange(null);
+            }}
+          />
+        ) : (
+          <div className="robot-image-placeholder">
+            <span>Kein Signal</span>
+          </div>
+        )}
+      </div>
       
       <div className="status-container">
         <p>

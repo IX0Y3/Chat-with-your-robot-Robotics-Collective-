@@ -3,8 +3,8 @@ import { Ros, Topic } from 'roslib';
 
 export class ROSClient {
   private ros: Ros;
-  private topic: Topic | null = null;
-  private messageHandler: ((message: any) => void) | null = null;
+  private topics: Map<string, Topic> = new Map();
+  private handlers: Map<string, (message: any) => void> = new Map();
 
   constructor(url: string = 'ws://localhost:9090') {
     this.ros = new Ros({ url });
@@ -28,34 +28,44 @@ export class ROSClient {
   subscribe(topicName: string, messageType: string, handler: (message: any) => void): void {
     console.log(`Subscribe zu ${topicName} (${messageType}), ROS verbunden: ${this.ros.isConnected}`);
     
-    if (this.topic && this.topic.name === topicName) {
-      // Bereits subscribed zum gleichen Topic, handler aktualisieren
+    // Wenn bereits subscribed, nur Handler aktualisieren
+    if (this.topics.has(topicName)) {
       console.log(`Handler für ${topicName} aktualisiert`);
-      this.messageHandler = handler;
+      this.handlers.set(topicName, handler);
       return;
     }
 
-    // Wenn bereits ein anderes Topic subscribed ist, unsubscribe
-    if (this.topic) {
-      console.log(`Unsubscribe von altem Topic: ${this.topic.name}`);
-      this.topic.unsubscribe();
-    }
-
-    this.messageHandler = handler;
-    this.topic = new Topic({
+    // Neues Topic erstellen und subscriben
+    const topic = new Topic({
       ros: this.ros,
       name: topicName,
       messageType: messageType
     });
 
     console.log(`Topic erstellt: ${topicName}, starte Subscription...`);
-    this.topic.subscribe((message: any) => {
+    topic.subscribe((message: any) => {
       console.log(`📨 Nachricht empfangen auf ${topicName}:`, message);
-      if (this.messageHandler) {
-        this.messageHandler(message);
+      const handler = this.handlers.get(topicName);
+      if (handler) {
+        handler(message);
       }
     });
-    console.log(`✓ Subscription zu ${topicName} aktiv`);
+
+    // Topic und Handler speichern
+    this.topics.set(topicName, topic);
+    this.handlers.set(topicName, handler);
+    
+    console.log(`✓ Subscription zu ${topicName} aktiv (total: ${this.topics.size} Topics)`);
+  }
+
+  unsubscribe(topicName: string): void {
+    const topic = this.topics.get(topicName);
+    if (topic) {
+      topic.unsubscribe();
+      this.topics.delete(topicName);
+      this.handlers.delete(topicName);
+      console.log(`✓ Unsubscribed von ${topicName} (total: ${this.topics.size} Topics)`);
+    }
   }
 
   publish(topicName: string, messageType: string, message: any): void {

@@ -128,9 +128,9 @@ app.post('/api/ros/command', (req: Request, res: Response) => {
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`API Endpoints:`);
-  console.log(`  POST /api/ros/subscribe - Subscribe to ROS Topic`);
-  console.log(`  POST /api/ros/command - Send command to ROS (publishes as ROS message)`);
-  console.log(`  GET /api/ros/camera-stream - Server-Sent Events stream for camera blobs`);
-  console.log(`  WS /api/ros/logs-ws - WebSocket for log messages (real-time)`);
+  console.log(`📡  POST /api/ros/subscribe - Subscribe to ROS Topic`);
+  console.log(`📡  POST /api/ros/command - Send command to ROS (publishes as ROS message)`);
+  console.log(`📡  GET /api/ros/camera-stream - Server-Sent Events stream for camera blobs`);
+  console.log(`📡  WS /api/ros/logs-ws - WebSocket for log messages (real-time)`);
 });
 

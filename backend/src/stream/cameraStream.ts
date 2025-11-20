@@ -107,7 +107,6 @@ export const setupCameraSubscription = (rosClient: ROSClient): void => {
     const checkConnection = setInterval(() => {
       if (rosClient.isConnected) {
         clearInterval(checkConnection);
-        console.log(`Subscribing to Camera-Topic`);
         rosClient.subscribe("/camera/color/image_raw/compressed", "sensor_msgs/msg/CompressedImage", (message: any) => {
           handleCameraMessage(message);
         });

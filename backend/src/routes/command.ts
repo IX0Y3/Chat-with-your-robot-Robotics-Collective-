@@ -35,7 +35,7 @@ export const setupCommandRoute = (app: Express, rosClient: ROSClient): void => {
     // Return success message
     res.json({ 
       success: true, 
-      message: `📤✅ Command '${command}' was published as ROS message`
+      message: `Command '${command}' was published as ROS message`
     });
   });
 };

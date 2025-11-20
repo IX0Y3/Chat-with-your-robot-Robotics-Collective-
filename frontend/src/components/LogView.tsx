@@ -67,7 +67,7 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange }: LogViewPr
       ws.onopen = () => {
         reconnectAttemptsRef.current = 0;
         onStatusChange('connected');
-        onLog('✓ WebSocket for logs connected');
+        onLog('✅ WebSocket for logs connected');
       };
 
       ws.onmessage = (event) => {

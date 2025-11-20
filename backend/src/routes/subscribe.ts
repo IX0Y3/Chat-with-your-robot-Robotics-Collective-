@@ -30,7 +30,7 @@ export const setupSubscribeRoute = (app: Express, rosClient: ROSClient): void =>
     // Return success message
     res.json({ 
       success: true, 
-      message: `📡✅ Subscribed to ${topic}`,
+      message: `Subscribed to ${topic}`,
     });
   });
 };

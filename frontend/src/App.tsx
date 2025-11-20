@@ -14,6 +14,7 @@ function App() {
   const [commandInput, setCommandInput] = useState<string>('');
   const lastTimestampRef = useRef<number>(0);
   const currentBlobUrlRef = useRef<string | null>(null); // For cleanup of blob URLs
+  const hasSubscribedRef = useRef<boolean>(false); // Prevent double subscription in Strict Mode
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -39,7 +40,7 @@ function App() {
 
     eventSource.onopen = () => {
       setStreamStatus('connected');
-      addLog('✓ Camera stream connected');
+      addLog('✅ Camera stream connected');
     };
 
     eventSource.onmessage = (event) => {
@@ -96,6 +97,12 @@ function App() {
 
   // Automatically subscribe to /rosout on component mount
   useEffect(() => {
+    // Prevent double subscription in React Strict Mode
+    if (hasSubscribedRef.current) {
+      return;
+    }
+    hasSubscribedRef.current = true;
+
     const subscribeToRosout = async () => {
       setIsLoading(true);
       setCommandStatus('connecting');
@@ -118,15 +125,15 @@ function App() {
         if (response.ok) {
           setCommandStatus('connected');
           setIsSubscribed(true);
-          addLog(`✓ ${data.message}`);
+          addLog(`✅ ${data.message}`);
         } else {
           setCommandStatus('error');
           setIsSubscribed(false);
-          addLog(`✗ Error: ${data.error}`);
+          addLog(`❌ Error: ${data.error}`);
         }
       } catch (error) {
         setCommandStatus('error');
-        addLog(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
+        addLog(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsLoading(false);
       }

@@ -1,9 +1,12 @@
 {
-  "name": "chat-with-your-robot-robotics-collective-",
+  "name": "chat-with-your-robot-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -13,7 +16,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/IX0Y3/Chat-with-your-robot-Robotics-Collective-/issues"
   },
@@ -21,5 +24,10 @@
   "dependencies": {
     "express": "^5.1.0",
     "roslib": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   }
 }

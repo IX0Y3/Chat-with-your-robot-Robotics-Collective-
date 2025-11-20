@@ -1,0 +1,82 @@
+.app {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  margin-bottom: 24px;
+  color: #333;
+}
+
+.status-container {
+  margin-bottom: 20px;
+}
+
+.status {
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.status-verbunden {
+  color: #22c55e;
+}
+
+.status-getrennt {
+  color: #6b7280;
+}
+
+.status-fehler {
+  color: #ef4444;
+}
+
+.subscribe-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 24px;
+}
+
+.subscribe-button:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.subscribe-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.log-container {
+  margin-top: 24px;
+}
+
+.log-container h2 {
+  margin-bottom: 12px;
+  color: #333;
+  font-size: 18px;
+}
+
+.log {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.log div {
+  margin-bottom: 4px;
+}
+

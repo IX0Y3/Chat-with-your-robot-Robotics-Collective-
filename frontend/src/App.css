@@ -32,8 +32,14 @@ h1 {
   color: #ef4444;
 }
 
-.subscribe-button {
-  background-color: #3b82f6;
+.button-group {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.subscribe-button,
+.publish-button {
   color: white;
   border: none;
   padding: 12px 24px;
@@ -41,7 +47,10 @@ h1 {
   border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.2s;
-  margin-bottom: 24px;
+}
+
+.subscribe-button {
+  background-color: #3b82f6;
 }
 
 .subscribe-button:hover:not(:disabled) {
@@ -49,6 +58,19 @@ h1 {
 }
 
 .subscribe-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.publish-button {
+  background-color: #10b981;
+}
+
+.publish-button:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.publish-button:disabled {
   background-color: #9ca3af;
   cursor: not-allowed;
 }

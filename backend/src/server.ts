@@ -67,5 +67,8 @@ app.post('/api/ros/publish', (req: Request, res: Response) => {
 
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
+  console.log(`API Endpoints:`);
+  console.log(`  POST /api/ros/subscribe - Subscribe zu ROS Topic`);
+  console.log(`  POST /api/ros/publish - Publish ROS Message`);
 });
 

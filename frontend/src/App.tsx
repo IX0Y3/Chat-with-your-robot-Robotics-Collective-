@@ -50,6 +50,39 @@ function App() {
     }
   };
 
+  const handlePublish = async () => {
+    setIsLoading(true);
+    addLog('Publishe Nachricht...');
+
+    try {
+      const response = await fetch('/api/ros/publish', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          topic: '/example_topic',
+          messageType: 'std_msgs/msg/String',
+          message: {
+            data: 'Hallo aus dem React Frontend!'
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        addLog(`✓ ${data.message}`);
+      } else {
+        addLog(`✗ Fehler: ${data.error}`);
+      }
+    } catch (error) {
+      addLog(`✗ Fehler: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="app">
       <h1>ROS2 Web Demo</h1>
@@ -63,13 +96,23 @@ function App() {
         </p>
       </div>
 
-      <button
-        onClick={handleSubscribe}
-        disabled={isLoading}
-        className="subscribe-button"
-      >
-        {isLoading ? 'Verbinde...' : 'Zu ROS Topic subscriben'}
-      </button>
+      <div className="button-group">
+        <button
+          onClick={handleSubscribe}
+          disabled={isLoading}
+          className="subscribe-button"
+        >
+          {isLoading ? 'Verbinde...' : 'Zu ROS Topic subscriben'}
+        </button>
+        
+        <button
+          onClick={handlePublish}
+          disabled={isLoading || status !== 'verbunden'}
+          className="publish-button"
+        >
+          Nachricht publishen
+        </button>
+      </div>
 
       <div className="log-container">
         <h2>Log</h2>

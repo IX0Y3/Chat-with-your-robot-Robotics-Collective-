@@ -16,14 +16,6 @@ npm run dev
 
 Kompiliert TypeScript im Watch-Modus.
 
-## Build
-
-```bash
-npm run build
-```
-
-Kompiliert TypeScript nach `dist/`.
-
 ## Start
 
 ```bash

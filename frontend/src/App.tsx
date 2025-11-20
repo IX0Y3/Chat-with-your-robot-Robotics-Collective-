@@ -175,68 +175,73 @@ function App() {
 
   return (
     <div className="app">
-      <h1>ROS2 Web Demo</h1>
-      
-      <div className="robot-image-container">
-        {robotImageSrc ? (
-          <img 
-            id="robot-image" 
-            src={robotImageSrc} 
-            alt="Robot Image" 
-            className="robot-image"
-            onError={() => {
-              // If image cannot be loaded, show placeholder
-              handleImageChange(null);
-            }}
-          />
-        ) : (
-          <div className="robot-image-placeholder">
-            <span>No Signal</span>
+      <div className="app-layout">
+        <div className="left-panel">
+          <h1>ROS2 Web Demo</h1>
+          <div className="robot-image-container">
+            {robotImageSrc ? (
+              <img 
+                id="robot-image" 
+                src={robotImageSrc} 
+                alt="Robot Image" 
+                className="robot-image"
+                onError={() => {
+                  // If image cannot be loaded, show placeholder
+                  handleImageChange(null);
+                }}
+              />
+            ) : (
+              <div className="robot-image-placeholder">
+                <span>No Signal</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      
-      <StatusView 
-        streamStatus={streamStatus}
-        commandStatus={commandStatus}
-        logStatus={logStatus}
-      />
 
-      <div className="command-container">
-        <h2>Send Command</h2>
-        <form onSubmit={handleCommandSubmit} className="command-form">
-          <input
-            type="text"
-            value={commandInput}
-            onChange={(e) => setCommandInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (commandInput.trim() && commandStatus === 'connected' && !isLoading) {
-                  handleCommandSubmit(e as any);
-                }
-              }
-            }}
-            placeholder="Enter command..."
-            className="command-input"
-            disabled={commandStatus !== 'connected'}
+          <div className="command-container">
+            <h2>Send Command</h2>
+            <form onSubmit={handleCommandSubmit} className="command-form">
+              <input
+                type="text"
+                value={commandInput}
+                onChange={(e) => setCommandInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (commandInput.trim() && commandStatus === 'connected' && !isLoading) {
+                      handleCommandSubmit(e as any);
+                    }
+                  }
+                }}
+                placeholder="Enter command..."
+                className="command-input"
+                disabled={commandStatus !== 'connected'}
+              />
+              <button
+                type="submit"
+                disabled={!commandInput.trim() || commandStatus !== 'connected' || isLoading}
+                className="command-button"
+              >
+                Send
+              </button>
+            </form>
+          </div>
+          
+          <StatusView 
+            streamStatus={streamStatus}
+            commandStatus={commandStatus}
+            logStatus={logStatus}
           />
-          <button
-            type="submit"
-            disabled={!commandInput.trim() || commandStatus !== 'connected' || isLoading}
-            className="command-button"
-          >
-            Send
-          </button>
-        </form>
-      </div>
+        </div>
 
-      <LogView 
-        logs={logs} 
-        isSubscribed={isSubscribed} 
-        onLog={addLog}
-        onStatusChange={setLogStatus}
-      />
+        <div className="right-panel">
+          <LogView 
+            logs={logs} 
+            isSubscribed={isSubscribed} 
+            onLog={addLog}
+            onStatusChange={setLogStatus}
+          />
+        </div>
+      </div>
     </div>
   );
 }

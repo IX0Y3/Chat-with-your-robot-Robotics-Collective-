@@ -142,7 +142,6 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange }: LogViewPr
 
   return (
     <div className="log-container">
-      <h2>Log</h2>
       <pre className="log">
         {logs.length === 0 ? 'No logs...' : logs.map((log, index) => (
           <div key={index}>

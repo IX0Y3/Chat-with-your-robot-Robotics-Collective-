@@ -92,6 +92,46 @@ function App() {
     };
   }, [handleImageChange]);
 
+  // Automatically subscribe to /rosout on component mount
+  useEffect(() => {
+    const subscribeToRosout = async () => {
+      setIsLoading(true);
+      addLog('🔄 Auto-subscribing to /rosout...');
+
+      try {
+        const response = await fetch('/api/ros/subscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            topic: '/rosout',
+            messageType: 'rcl_interfaces/msg/Log',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setStatus('connected');
+          setIsSubscribed(true);
+          addLog(`✓ ${data.message}`);
+        } else {
+          setStatus('error');
+          setIsSubscribed(false);
+          addLog(`✗ Error: ${data.error}`);
+        }
+      } catch (error) {
+        setStatus('error');
+        addLog(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    subscribeToRosout();
+  }, []);
+
   // WebSocket for log messages (not images) - more efficient than polling
   useEffect(() => {
     if (!isSubscribed) return;
@@ -109,12 +149,12 @@ function App() {
 
     ws.onmessage = (event) => {
       try {
-        const msg: ROSMessage = JSON.parse(event.data);
+        const rosMessage: ROSMessage = JSON.parse(event.data);
         
         // Formatted display of message
-        const messageStr = msg.message.msg;
-        addLog(`📨 [${msg.topic}] ${messageStr}`);
-        lastTimestampRef.current = msg.timestamp;
+        const textMessageContent = rosMessage.message.data;
+        addLog(`📨 [${rosMessage.topic}] ${textMessageContent}`);
+        lastTimestampRef.current = rosMessage.timestamp;
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }
@@ -133,42 +173,6 @@ function App() {
       ws.close();
     };
   }, [isSubscribed]);
-
-  const handleSubscribe = async () => {
-    setIsLoading(true);
-    addLog('Subscribing to /rosout...');
-
-    try {
-      const response = await fetch('/api/ros/subscribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          topic: '/rosout',
-          messageType: 'rcl_interfaces/msg/Log',
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setStatus('connected');
-        setIsSubscribed(true);
-        addLog(`✓ ${data.message}`);
-      } else {
-        setStatus('error');
-        setIsSubscribed(false);
-        addLog(`✗ Error: ${data.error}`);
-      }
-    } catch (error) {
-      setStatus('error');
-      addLog(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
 
 
   const handleCommandSubmit = async (e: React.FormEvent) => {
@@ -230,16 +234,6 @@ function App() {
             {status}
           </span>
         </p>
-      </div>
-
-      <div className="button-group">
-        <button
-          onClick={handleSubscribe}
-          disabled={isLoading}
-          className="subscribe-button"
-        >
-          {isLoading ? 'Connecting...' : 'Subscribe to ROS Topic'}
-        </button>
       </div>
 
       <div className="command-container">

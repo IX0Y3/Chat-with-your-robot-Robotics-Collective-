@@ -91,7 +91,7 @@ export const setupCameraStreamEndpoint = (app: Express): void => {
 
 // Automatische Subscription zum Kamera-Topic beim Server-Start
 const CAMERA_TOPIC = '/camera/color/image_raw/compressed';
-const CAMERA_MESSAGE_TYPE = 'sensor_msgs/msg/Image';
+const CAMERA_MESSAGE_TYPE = 'sensor_msgs/msg/CompressedImage';
 
 // Warte auf ROS-Verbindung und subscribe dann zum Kamera-Topic
 export const setupCameraSubscription = (rosClient: ROSClient): void => {

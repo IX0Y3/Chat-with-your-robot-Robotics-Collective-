@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 
 interface LogEntry {
@@ -22,68 +22,83 @@ function App() {
   const lastTimestampRef = useRef<number>(0);
   const lastLogTimeRef = useRef<number>(0);
   const logThrottleMs = 1000; // Maximal 1 Log pro Sekunde für Bild-Updates
+  const currentBlobUrlRef = useRef<string | null>(null); // Für Cleanup von Blob-URLs
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs((prev) => [...prev, { timestamp, message }]);
   };
 
-  // Server-Sent Events (SSE) für Bilder (30 FPS)
-  // Backend sendet bereits nur Bilder über diesen Stream
+  const handleImageChange = useCallback((newSrc: string | null) => {
+    setRobotImageSrc(newSrc);
+  }, []);
+
+  // Dedizierter Server-Sent Events (SSE) Stream für Kamera-Blobs
   useEffect(() => {
     if (!isSubscribed) return;
 
-    addLog('🔄 Verbinde mit SSE-Stream für Bilder...');
-    const eventSource = new EventSource(`/api/ros/stream?since=${lastTimestampRef.current}`);
+    addLog('🔄 Verbinde mit Kamera-Stream...');
+    const eventSource = new EventSource(`/api/ros/camera-stream?since=${lastTimestampRef.current}`);
 
     eventSource.onopen = () => {
-      addLog('✓ SSE-Stream für Bilder verbunden');
+      addLog('✓ Kamera-Stream verbunden');
     };
 
     eventSource.onmessage = (event) => {
       try {
-        const msg: ROSMessage = JSON.parse(event.data);
+        const blobData = JSON.parse(event.data);
         
-        // Backend sendet nur Bilder, also direkt verarbeiten
-        if (msg.message && typeof msg.message === 'object') {
-          let imageUrl: string | null = null;
-          
-          if (msg.message.image_url) imageUrl = msg.message.image_url;
-          else if (msg.message.imageUrl) imageUrl = msg.message.imageUrl;
-          else if (msg.message.url) imageUrl = msg.message.url;
-          else if (msg.message.data) {
-            if (typeof msg.message.data === 'string' && msg.message.data.startsWith('data:image')) {
-              imageUrl = msg.message.data;
-            } else if (typeof msg.message.data === 'string' && msg.message.data.startsWith('http')) {
-              imageUrl = msg.message.data;
-            }
+        // Backend sendet Base64-Daten, wir erstellen daraus eine Blob-URL
+        if (blobData.data && typeof blobData.data === 'string') {
+          // Konvertiere Base64-String zu Uint8Array
+          const base64Data = blobData.data;
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
           }
           
-          if (imageUrl && typeof imageUrl === 'string') {
-            handleImageChange(imageUrl);
-            // Log nur bei Bildänderung und mit Throttling
-            const now = Date.now();
-            if (robotImageSrc !== imageUrl && (now - lastLogTimeRef.current) > logThrottleMs) {
-              addLog(`🖼️ Bild aktualisiert von ${msg.topic}`);
-              lastLogTimeRef.current = now;
-            }
+          // Erstelle Blob aus Uint8Array
+          const blob = new Blob([bytes], { type: 'image/jpeg' });
+          
+          // Erstelle Blob-URL (die im <img> Element verwendet werden kann)
+          const blobUrl = URL.createObjectURL(blob);
+          
+          // Cleanup alte Blob-URL
+          if (currentBlobUrlRef.current) {
+            URL.revokeObjectURL(currentBlobUrlRef.current);
+          }
+          
+          currentBlobUrlRef.current = blobUrl;
+          handleImageChange(blobUrl);
+          
+          // Log nur bei Bildänderung und mit Throttling
+          const now = Date.now();
+          if ((now - lastLogTimeRef.current) > logThrottleMs) {
+            addLog(`🖼️ Kamera-Bild aktualisiert (${bytes.length} bytes)`);
+            lastLogTimeRef.current = now;
           }
         }
       } catch (error) {
-        console.error('Fehler beim Parsen der SSE-Nachricht:', error);
+        console.error('Fehler beim Verarbeiten der Kamera-Blob-Daten:', error);
       }
     };
 
     eventSource.onerror = (error) => {
-      console.error('SSE Fehler:', error);
-      addLog('⚠️ Verbindungsfehler zu Bild-Stream');
+      console.error('Kamera-Stream Fehler:', error);
+      addLog('⚠️ Verbindungsfehler zu Kamera-Stream');
     };
 
     return () => {
-      addLog('🔌 SSE-Stream getrennt');
+      addLog('🔌 Kamera-Stream getrennt');
       eventSource.close();
+      // Cleanup Blob-URL beim Unmount
+      if (currentBlobUrlRef.current) {
+        URL.revokeObjectURL(currentBlobUrlRef.current);
+        currentBlobUrlRef.current = null;
+      }
     };
-  }, [isSubscribed, robotImageSrc]);
+  }, [isSubscribed, handleImageChange]);
 
   // WebSocket für Log-Nachrichten (nicht Bilder) - effizienter als Polling
   useEffect(() => {
@@ -199,9 +214,6 @@ function App() {
     }
   };
 
-  const handleImageChange = (newSrc: string | null) => {
-    setRobotImageSrc(newSrc);
-  };
 
   const handleCommandSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

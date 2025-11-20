@@ -5,6 +5,7 @@ import type { Response as ExpressResponse } from 'express';
 import { ROSClient } from './ros/rosClient.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
+import { setupCameraStreamEndpoint, setupCameraSubscription } from './stream/cameraStream.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,20 +19,6 @@ const server = createServer(app);
 // Speichere empfangene ROS-Nachrichten
 const rosMessages: Array<{ topic: string; message: any; timestamp: number }> = [];
 const MAX_MESSAGES = 100; // Maximal 100 Nachrichten speichern
-
-// Helper: Prüft ob eine Nachricht ein Bild enthält
-// Muss vor addRosMessage definiert werden, da dort verwendet
-const isImageMessage = (message: any): boolean => {
-  if (!message || typeof message !== 'object') return false;
-  
-  if (message.image_url || message.imageUrl) return true;
-  if (message.url && typeof message.url === 'string' && 
-      (message.url.startsWith('http') || message.url.startsWith('data:image'))) return true;
-  if (message.data && typeof message.data === 'string' && 
-      (message.data.startsWith('data:image') || message.data.startsWith('http'))) return true;
-  
-  return false;
-};
 
 // WebSocket Server für Log-Nachrichten (nicht-Bilder)
 const wss = new WebSocketServer({ 
@@ -56,7 +43,7 @@ wss.on('connection', (ws: WebSocket) => {
   });
 });
 
-// Helper: Nachricht speichern und an WebSocket-Clients senden (nur nicht-Bilder)
+// Helper: Nachricht speichern und an WebSocket-Clients senden
 const addRosMessage = (topic: string, message: any) => {
   const timestamp = Date.now();
   const msg = {
@@ -72,8 +59,8 @@ const addRosMessage = (topic: string, message: any) => {
     rosMessages.shift();
   }
   
-  // Sende nur nicht-Bild-Nachrichten über WebSocket
-  if (!isImageMessage(message) && logClients.size > 0) {
+  // Sende alle Nachrichten über WebSocket (außer Kamera-Topic, das hat eigenen Stream)
+  if (topic !== '/camera/color/image_raw/compressed' && logClients.size > 0) {
     const data = JSON.stringify(msg);
     logClients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -82,6 +69,7 @@ const addRosMessage = (topic: string, message: any) => {
     });
   }
 };
+
 
 // CORS für React Frontend (muss vor den Routes sein)
 app.use((_req, res, next) => {
@@ -99,6 +87,9 @@ app.use(express.json());
 
 // ROS Client
 const rosClient = new ROSClient('ws://localhost:9090');
+
+// Kamera-Stream Endpoint einrichten
+setupCameraStreamEndpoint(app);
 
 // ROS Subscription Endpoint
 app.post('/api/ros/subscribe', (req: Request, res: Response) => {
@@ -171,61 +162,6 @@ app.post('/api/ros/command', (req: Request, res: Response) => {
   });
 });
 
-// Server-Sent Events (SSE) für Bilder (30 FPS)
-// Sendet nur Bild-Nachrichten über diesen Stream
-app.get('/api/ros/stream', (req: Request, res: Response) => {
-  // SSE Headers setzen
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // Nginx buffering deaktivieren
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
-  
-  console.log('SSE Client verbunden (nur Bilder)');
-
-  let lastTimestamp = req.query.since ? parseInt(req.query.since as string) : 0;
-  let messageCount = 0;
-
-  // Sende initiale Nachrichten (nur Bilder)
-  const sendMessages = () => {
-    try {
-      // Filtere nur Bild-Nachrichten
-      const filteredMessages = rosMessages
-        .filter(msg => msg.timestamp > lastTimestamp)
-        .filter(msg => isImageMessage(msg.message));
-      
-      if (filteredMessages.length > 0) {
-        filteredMessages.forEach((msg) => {
-          res.write(`data: ${JSON.stringify(msg)}\n\n`);
-          lastTimestamp = msg.timestamp;
-          messageCount++;
-        });
-        console.log(`SSE (Bilder): ${filteredMessages.length} Bilder gesendet (total: ${messageCount})`);
-      }
-    } catch (error) {
-      console.error('SSE Fehler beim Senden:', error);
-    }
-  };
-
-  // Initiale Nachrichten senden
-  sendMessages();
-
-  // Prüfe alle 33ms (ca. 30 FPS) nach neuen Nachrichten
-  const interval = setInterval(() => {
-    if (req.socket.destroyed || req.closed) {
-      clearInterval(interval);
-      return;
-    }
-    sendMessages();
-  }, 33);
-
-  // Cleanup bei Verbindungsabbruch
-  req.on('close', () => {
-    clearInterval(interval);
-    console.log(`SSE Client getrennt (${messageCount} Bilder gesendet)`);
-    res.end();
-  });
-});
 
 server.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
@@ -233,7 +169,10 @@ server.listen(PORT, () => {
   console.log(`  POST /api/ros/subscribe - Subscribe zu ROS Topic`);
   console.log(`  POST /api/ros/publish - Publish ROS Message`);
   console.log(`  POST /api/ros/command - Sende Befehl an ROS`);
-  console.log(`  GET /api/ros/stream - Server-Sent Events Stream für Bilder (30 FPS)`);
+  console.log(`  GET /api/ros/camera-stream - Server-Sent Events Stream für Kamera-Blobs`);
   console.log(`  WS /api/ros/logs-ws - WebSocket für Log-Nachrichten (Echtzeit)`);
+  
+  // Starte Kamera-Subscription
+  setupCameraSubscription(rosClient);
 });
 

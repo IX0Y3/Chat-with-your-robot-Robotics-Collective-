@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 interface LogEntry {
@@ -6,15 +6,77 @@ interface LogEntry {
   message: string;
 }
 
+interface ROSMessage {
+  topic: string;
+  message: any;
+  timestamp: number;
+}
+
 function App() {
   const [status, setStatus] = useState<'getrennt' | 'verbunden' | 'Fehler'>('getrennt');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const lastTimestampRef = useRef<number>(0);
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs((prev) => [...prev, { timestamp, message }]);
   };
+
+  // Polling für ROS-Nachrichten vom Backend
+  useEffect(() => {
+    if (!isSubscribed) return;
+
+    const pollMessages = async () => {
+      try {
+        const response = await fetch(`/api/ros/messages?since=${lastTimestampRef.current}`);
+        
+        // Prüfe ob Response OK ist und Content-Type JSON ist
+        if (!response.ok) {
+          const text = await response.text();
+          console.error('API Fehler:', response.status, text);
+          return;
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Unerwarteter Content-Type:', contentType, text.substring(0, 100));
+          return;
+        }
+
+        const data = await response.json();
+        
+        // Debug: Zeige wie viele Nachrichten gefunden wurden
+        if (data.messages && data.messages.length > 0) {
+          console.log(`Polling: ${data.messages.length} neue Nachrichten gefunden`);
+          data.messages.forEach((msg: ROSMessage) => {
+            // Formatierte Anzeige der Nachricht
+            const messageStr = typeof msg.message === 'object' 
+              ? JSON.stringify(msg.message, null, 2)
+              : String(msg.message);
+            addLog(`📨 [${msg.topic}] ${messageStr}`);
+            lastTimestampRef.current = msg.timestamp;
+          });
+        }
+      } catch (error) {
+        console.error('Fehler beim Abrufen der Nachrichten:', error);
+        // Nur einmal loggen, nicht bei jedem Poll
+        if (error instanceof Error && !error.message.includes('JSON')) {
+          addLog(`⚠️ Fehler beim Abrufen der Nachrichten: ${error.message}`);
+        }
+      }
+    };
+
+    // Alle 500ms nach neuen Nachrichten fragen
+    const interval = setInterval(pollMessages, 500);
+    
+    // Sofort einmal abfragen
+    pollMessages();
+
+    return () => clearInterval(interval);
+  }, [isSubscribed]);
 
   const handleSubscribe = async () => {
     setIsLoading(true);
@@ -36,10 +98,13 @@ function App() {
 
       if (response.ok) {
         setStatus('verbunden');
+        setIsSubscribed(true);
         addLog(`✓ ${data.message}`);
         addLog(`Verbindungsstatus: ${data.connected ? 'verbunden' : 'nicht verbunden'}`);
+        addLog('🔄 Starte Polling für ROS-Nachrichten...');
       } else {
         setStatus('Fehler');
+        setIsSubscribed(false);
         addLog(`✗ Fehler: ${data.error}`);
       }
     } catch (error) {

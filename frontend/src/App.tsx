@@ -33,7 +33,6 @@ function App() {
 
   // Dedicated Server-Sent Events (SSE) stream for camera blobs
   useEffect(() => {
-    if (!isSubscribed) return;
 
     addLog('🔄 Connecting to camera stream...');
     const eventSource = new EventSource(`/api/ros/camera-stream?since=${lastTimestampRef.current}`);
@@ -90,7 +89,7 @@ function App() {
         currentBlobUrlRef.current = null;
       }
     };
-  }, [isSubscribed, handleImageChange]);
+  }, [handleImageChange]);
 
   // WebSocket for log messages (not images) - more efficient than polling
   useEffect(() => {
@@ -112,9 +111,7 @@ function App() {
         const msg: ROSMessage = JSON.parse(event.data);
         
         // Formatted display of message
-        const messageStr = typeof msg.message === 'object' 
-          ? JSON.stringify(msg.message, null, 2)
-          : String(msg.message);
+        const messageStr = msg.message.msg;
         addLog(`📨 [${msg.topic}] ${messageStr}`);
         lastTimestampRef.current = msg.timestamp;
       } catch (error) {
@@ -138,7 +135,7 @@ function App() {
 
   const handleSubscribe = async () => {
     setIsLoading(true);
-    addLog('Subscribing to /example_topic...');
+    addLog('Subscribing to /rosout...');
 
     try {
       const response = await fetch('/api/ros/subscribe', {
@@ -148,7 +145,7 @@ function App() {
         },
         body: JSON.stringify({
           topic: '/rosout',
-          messageType: 'std_msgs/msg/String',
+          messageType: 'rcl_interfaces/msg/Log',
         }),
       });
 
@@ -193,7 +190,7 @@ function App() {
       const data = await response.json();
 
       if (response.ok) {
-        addLog(`✓ Command successful: ${data.message || 'Executed'}`);
+        addLog(`✓ ${data.message}`);
       } else {
         addLog(`✗ Error: ${data.error || 'Unknown error'}`);
       }

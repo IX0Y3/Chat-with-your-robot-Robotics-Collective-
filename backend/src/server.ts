@@ -91,6 +91,9 @@ const rosClient = new ROSClient('ws://localhost:9090');
 // Setup camera stream endpoint
 setupCameraStreamEndpoint(app);
 
+// Start camera subscription (has retry logic, doesn't need to wait for server)
+setupCameraSubscription(rosClient);
+
 // ROS Subscription Endpoint
 app.post('/api/ros/subscribe', (req: Request, res: Response) => {
   const { topic, messageType } = req.body;
@@ -152,8 +155,5 @@ server.listen(PORT, () => {
   console.log(`  POST /api/ros/command - Send command to ROS (publishes as ROS message)`);
   console.log(`  GET /api/ros/camera-stream - Server-Sent Events stream for camera blobs`);
   console.log(`  WS /api/ros/logs-ws - WebSocket for log messages (real-time)`);
-  
-  // Start camera subscription
-  setupCameraSubscription(rosClient);
 });
 

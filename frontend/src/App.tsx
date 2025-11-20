@@ -75,10 +75,6 @@ function App() {
           
           // Log only on image change and with throttling
           const now = Date.now();
-          if ((now - lastLogTimeRef.current) > logThrottleMs) {
-            addLog(`🖼️ Camera image updated (${bytes.length} bytes)`);
-            lastLogTimeRef.current = now;
-          }
         }
       } catch (error) {
         console.error('Error processing camera blob data:', error);

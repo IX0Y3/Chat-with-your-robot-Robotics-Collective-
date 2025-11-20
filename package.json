@@ -1,0 +1,25 @@
+{
+  "name": "chat-with-your-robot-robotics-collective-",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IX0Y3/Chat-with-your-robot-Robotics-Collective-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/IX0Y3/Chat-with-your-robot-Robotics-Collective-/issues"
+  },
+  "homepage": "https://github.com/IX0Y3/Chat-with-your-robot-Robotics-Collective-#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "roslib": "^2.0.0"
+  }
+}

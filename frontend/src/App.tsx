@@ -152,7 +152,7 @@ function App() {
         const rosMessage: ROSMessage = JSON.parse(event.data);
         
         // Formatted display of message
-        const textMessageContent = rosMessage.message.data;
+        const textMessageContent = rosMessage.message.msg;
         addLog(`📨 [${rosMessage.topic}] ${textMessageContent}`);
         lastTimestampRef.current = rosMessage.timestamp;
       } catch (error) {

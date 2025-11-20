@@ -147,7 +147,7 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          topic: '/example_topic',
+          topic: '/rosout',
           messageType: 'std_msgs/msg/String',
         }),
       });
@@ -158,8 +158,6 @@ function App() {
         setStatus('connected');
         setIsSubscribed(true);
         addLog(`✓ ${data.message}`);
-        addLog(`Connection status: ${data.connected ? 'connected' : 'not connected'}`);
-        addLog('🔄 Starting polling for ROS messages...');
       } else {
         setStatus('error');
         setIsSubscribed(false);

@@ -164,12 +164,12 @@ function App() {
       const data = await response.json();
 
       if (response.ok) {
-        addLog(`✓ ${data.message}`);
+        addLog(`✅ ${data.message}`);
       } else {
-        addLog(`✗ Error: ${data.error || 'Unknown error'}`);
+        addLog(`❌ Error: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
-      addLog(`✗ Error: ${error instanceof Error ? error.message : String(error)}`);
+      addLog(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 

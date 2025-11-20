@@ -84,49 +84,48 @@ function App() {
     };
   }, [isSubscribed, robotImageSrc]);
 
-  // Polling für andere Nachrichten (nicht Bilder)
+  // WebSocket für Log-Nachrichten (nicht Bilder) - effizienter als Polling
   useEffect(() => {
     if (!isSubscribed) return;
 
-    const pollMessages = async () => {
+    addLog('🔄 Verbinde mit WebSocket für Logs...');
+    
+    // WebSocket-URL: Vite Proxy leitet /api weiter
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.host;
+    const ws = new WebSocket(`${wsProtocol}//${wsHost}/api/ros/logs-ws`);
+
+    ws.onopen = () => {
+      addLog('✓ WebSocket für Logs verbunden');
+    };
+
+    ws.onmessage = (event) => {
       try {
-        const response = await fetch(`/api/ros/messages?since=${lastTimestampRef.current}&excludeImages=true`);
+        const msg: ROSMessage = JSON.parse(event.data);
         
-        if (!response.ok) {
-          const text = await response.text();
-          console.error('API Fehler:', response.status, text);
-          return;
-        }
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          return;
-        }
-
-        const data = await response.json();
-        
-        if (data.messages && data.messages.length > 0) {
-          data.messages.forEach((msg: ROSMessage) => {
-            // Formatierte Anzeige der Nachricht
-            const messageStr = typeof msg.message === 'object' 
-              ? JSON.stringify(msg.message, null, 2)
-              : String(msg.message);
-            addLog(`📨 [${msg.topic}] ${messageStr}`);
-            lastTimestampRef.current = msg.timestamp;
-          });
-        }
+        // Formatierte Anzeige der Nachricht
+        const messageStr = typeof msg.message === 'object' 
+          ? JSON.stringify(msg.message, null, 2)
+          : String(msg.message);
+        addLog(`📨 [${msg.topic}] ${messageStr}`);
+        lastTimestampRef.current = msg.timestamp;
       } catch (error) {
-        console.error('Fehler beim Abrufen der Nachrichten:', error);
+        console.error('Fehler beim Parsen der WebSocket-Nachricht:', error);
       }
     };
 
-    // Alle 500ms nach neuen Nachrichten fragen
-    const interval = setInterval(pollMessages, 500);
-    
-    // Sofort einmal abfragen
-    pollMessages();
+    ws.onerror = (error) => {
+      console.error('WebSocket Fehler:', error);
+      addLog('⚠️ WebSocket-Fehler für Logs');
+    };
 
-    return () => clearInterval(interval);
+    ws.onclose = () => {
+      addLog('🔌 WebSocket für Logs getrennt');
+    };
+
+    return () => {
+      ws.close();
+    };
   }, [isSubscribed]);
 
   const handleSubscribe = async () => {

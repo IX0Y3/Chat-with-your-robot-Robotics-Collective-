@@ -23,11 +23,13 @@
   "homepage": "https://github.com/IX0Y3/Chat-with-your-robot-Robotics-Collective-#readme",
   "dependencies": {
     "express": "^5.1.0",
-    "roslib": "^2.0.0"
+    "roslib": "^2.0.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^20.0.0",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.0.0"
   }
 }

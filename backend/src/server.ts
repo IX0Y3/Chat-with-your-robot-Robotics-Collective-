@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import type { Response as ExpressResponse } from 'express';
 import { ROSClient } from './ros/rosClient.js';
+import { WebSocketServer, WebSocket } from 'ws';
+import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,22 +12,74 @@ const __dirname = path.dirname(__filename);
 const app: Express = express();
 const PORT: number = 3000;
 
+// HTTP Server für WebSocket
+const server = createServer(app);
+
 // Speichere empfangene ROS-Nachrichten
 const rosMessages: Array<{ topic: string; message: any; timestamp: number }> = [];
 const MAX_MESSAGES = 100; // Maximal 100 Nachrichten speichern
 
-// Helper: Nachricht speichern
+// Helper: Prüft ob eine Nachricht ein Bild enthält
+// Muss vor addRosMessage definiert werden, da dort verwendet
+const isImageMessage = (message: any): boolean => {
+  if (!message || typeof message !== 'object') return false;
+  
+  if (message.image_url || message.imageUrl) return true;
+  if (message.url && typeof message.url === 'string' && 
+      (message.url.startsWith('http') || message.url.startsWith('data:image'))) return true;
+  if (message.data && typeof message.data === 'string' && 
+      (message.data.startsWith('data:image') || message.data.startsWith('http'))) return true;
+  
+  return false;
+};
+
+// WebSocket Server für Log-Nachrichten (nicht-Bilder)
+const wss = new WebSocketServer({ 
+  server,
+  path: '/api/ros/logs-ws'
+});
+
+const logClients = new Set<WebSocket>();
+
+wss.on('connection', (ws: WebSocket) => {
+  console.log('WebSocket Client für Logs verbunden');
+  logClients.add(ws);
+  
+  ws.on('close', () => {
+    console.log('WebSocket Client für Logs getrennt');
+    logClients.delete(ws);
+  });
+  
+  ws.on('error', (error) => {
+    console.error('WebSocket Fehler:', error);
+    logClients.delete(ws);
+  });
+});
+
+// Helper: Nachricht speichern und an WebSocket-Clients senden (nur nicht-Bilder)
 const addRosMessage = (topic: string, message: any) => {
   const timestamp = Date.now();
-  rosMessages.push({
+  const msg = {
     topic,
     message,
     timestamp
-  });
+  };
+  rosMessages.push(msg);
   console.log(`Nachricht gespeichert: [${topic}] timestamp=${timestamp}, total=${rosMessages.length}`);
+  
   // Alte Nachrichten entfernen, wenn zu viele
   if (rosMessages.length > MAX_MESSAGES) {
     rosMessages.shift();
+  }
+  
+  // Sende nur nicht-Bild-Nachrichten über WebSocket
+  if (!isImageMessage(message) && logClients.size > 0) {
+    const data = JSON.stringify(msg);
+    logClients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    });
   }
 };
 
@@ -92,41 +146,6 @@ app.post('/api/ros/publish', (req: Request, res: Response) => {
   res.json({ success: true, message: 'Nachricht gesendet' });
 });
 
-// Helper: Prüft ob eine Nachricht ein Bild enthält
-const isImageMessage = (message: any): boolean => {
-  if (!message || typeof message !== 'object') return false;
-  
-  if (message.image_url || message.imageUrl) return true;
-  if (message.url && typeof message.url === 'string' && 
-      (message.url.startsWith('http') || message.url.startsWith('data:image'))) return true;
-  if (message.data && typeof message.data === 'string' && 
-      (message.data.startsWith('data:image') || message.data.startsWith('http'))) return true;
-  
-  return false;
-};
-
-// Endpoint zum Abrufen von ROS-Nachrichten (für Polling, ohne Bilder)
-app.get('/api/ros/messages', (req: Request, res: Response) => {
-  const since = req.query.since ? parseInt(req.query.since as string) : 0;
-  const excludeImages = req.query.excludeImages === 'true';
-  
-  let filteredMessages = rosMessages.filter(msg => msg.timestamp > since);
-  
-  // Filtere Bilder raus, wenn excludeImages=true
-  if (excludeImages) {
-    filteredMessages = filteredMessages.filter(msg => !isImageMessage(msg.message));
-  }
-  
-  // Debug: Logge wie viele Nachrichten gespeichert sind
-  console.log(`GET /api/ros/messages: since=${since}, excludeImages=${excludeImages}, total=${rosMessages.length}, filtered=${filteredMessages.length}`);
-  
-  res.setHeader('Content-Type', 'application/json');
-  res.json({
-    messages: filteredMessages,
-    latestTimestamp: rosMessages.length > 0 ? rosMessages[rosMessages.length - 1].timestamp : 0
-  });
-});
-
 // Server-Sent Events (SSE) für Bilder (30 FPS)
 // Sendet nur Bild-Nachrichten über diesen Stream
 app.get('/api/ros/stream', (req: Request, res: Response) => {
@@ -183,12 +202,12 @@ app.get('/api/ros/stream', (req: Request, res: Response) => {
   });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
   console.log(`API Endpoints:`);
   console.log(`  POST /api/ros/subscribe - Subscribe zu ROS Topic`);
   console.log(`  POST /api/ros/publish - Publish ROS Message`);
-  console.log(`  GET /api/ros/messages - Abrufe ROS Nachrichten (Polling)`);
-  console.log(`  GET /api/ros/stream - Server-Sent Events Stream (Echtzeit)`);
+  console.log(`  GET /api/ros/stream - Server-Sent Events Stream für Bilder (30 FPS)`);
+  console.log(`  WS /api/ros/logs-ws - WebSocket für Log-Nachrichten (Echtzeit)`);
 });
 

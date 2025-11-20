@@ -9,6 +9,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        ws: true, // WebSocket-Support aktivieren
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req, res) => {
             // Für SSE: keine Buffering

@@ -103,12 +103,6 @@ export const setupCameraStreamEndpoint = (app: Express): void => {
  * @param rosClient The ROSClient instance
  */
 export const setupCameraSubscription = (rosClient: ROSClient): void => {
-  if (rosClient.isConnected) {
-    console.log(`Subscribing to Camera-Topic`);
-    rosClient.subscribe('/camera/color/image_raw/compressed', "sensor_msgs/msg/CompressedImage", (message: any) => {
-      handleCameraMessage(message);
-    });
-  } else {
     // Wait for connection
     const checkConnection = setInterval(() => {
       if (rosClient.isConnected) {
@@ -127,7 +121,6 @@ export const setupCameraSubscription = (rosClient: ROSClient): void => {
         console.warn('⚠️ ROS Connection not established within 30 seconds, cannot subscribe to camera topic.');
       }
     }, 30000);
-  }
 };
 
 

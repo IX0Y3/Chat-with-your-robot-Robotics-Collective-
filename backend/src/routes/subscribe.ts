@@ -8,9 +8,14 @@ import { addRosMessage } from '../utils/messageStorage.js';
  * @param rosClient ROS client instance
  */
 export const setupSubscribeRoute = (app: Express, rosClient: ROSClient): void => {
+
+  // Post subscribe to ROS topic
   app.post('/api/ros/subscribe', (req: Request, res: Response) => {
+
+    // Get topic and message type from request body
     const { topic, messageType } = req.body;
 
+    // Check if topic and message type are provided
     if (!topic || !messageType) {
       return res.status(400).json({ error: 'topic and messageType are required' });
     }
@@ -22,10 +27,10 @@ export const setupSubscribeRoute = (app: Express, rosClient: ROSClient): void =>
       addRosMessage(topic, message);
     });
 
+    // Return success message
     res.json({ 
       success: true, 
-      message: `Subscribed to ${topic}`,
-      connected: rosClient.isConnected 
+      message: `📡✅ Subscribed to ${topic}`,
     });
   });
 };

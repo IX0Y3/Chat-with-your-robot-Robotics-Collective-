@@ -32,6 +32,7 @@ function App() {
   }, []);
 
   // Dedicated Server-Sent Events (SSE) stream for camera blobs
+  // Starts immediately on component mount (camera subscription is automatic in backend)
   useEffect(() => {
 
     addLog('🔄 Connecting to camera stream...');
@@ -248,6 +249,14 @@ function App() {
             type="text"
             value={commandInput}
             onChange={(e) => setCommandInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (commandInput.trim() && status === 'connected' && !isLoading) {
+                  handleCommandSubmit(e as any);
+                }
+              }
+            }}
             placeholder="Enter command..."
             className="command-input"
             disabled={status !== 'connected'}

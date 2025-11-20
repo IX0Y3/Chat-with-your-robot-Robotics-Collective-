@@ -45,6 +45,7 @@ function App() {
     };
 
     eventSource.onmessage = (event) => {
+      console.log('Kamera-Stream Nachricht erhalten');
       try {
         const blobData = JSON.parse(event.data);
         

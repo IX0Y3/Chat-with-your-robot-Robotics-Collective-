@@ -1,77 +1,86 @@
 import { Express, Request, Response } from 'express';
 import { ROSClient } from '../ros/rosClient.js';
 
-// Kamera-Stream: Speichere Blob-Daten (Base64) für Kamera-Topic
+// Define a buffer to store recent camera blobs
 const cameraBlobs: Array<{ data: string; timestamp: number }> = [];
-const MAX_CAMERA_BLOBS = 10; // Maximal 10 Blobs speichern (für schnelle Updates)
 
-// Dedizierte Handler-Funktion für Kamera-Nachrichten
-// Konvertiert message.data (Uint8Array) zu Base64 für Übertragung
-// Frontend erstellt daraus eine Blob-URL
+/**
+ * Handle messages from the camera topic and store them in the buffer.
+ * @param message Message received from the camera topic
+ * @returns void
+ */
 export const handleCameraMessage = (message: any): void => {
+
+  // Check if message is valid (not empty)
   if (!message || !message.data) {
     console.warn('⚠️ Message is empty');
     return;
   }
   
+  // Convert message data (assumed to be Uint8Array) to Base64 string
   const data = new Uint8Array(message.data);
   const base64Data = Buffer.from(data).toString('base64');
 
+  // Store the Base64 string with a timestamp
   const timestamp = Date.now();
   cameraBlobs.push({ data: base64Data, timestamp });
   
-  // Alte Blobs entfernen, wenn zu viele
-  if (cameraBlobs.length > MAX_CAMERA_BLOBS) {
+  // Limit buffer size to last 10 blobs
+  // This is to prevent excessive memory usage
+  if (cameraBlobs.length > 10) {
     cameraBlobs.shift();
   }
 };
 
-// Dedizierter Server-Sent Events (SSE) Stream für Kamera-Topic
-// Sendet Blob-Daten als Base64-kodierte Strings
+/**
+ * Outsourced endpoint setup for camera SSE stream.
+ * @param app The express application
+ */
 export const setupCameraStreamEndpoint = (app: Express): void => {
 
+  // Camera Stream SSE Endpoint
   app.get('/api/ros/camera-stream', (req: Request, res: Response) => {
 
-    // SSE Headers setzen
+    // SSE Headers
+    // Needs to allow CORS from frontend server (assumed localhost:5173)
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
-    
-    console.log('SSE Client für Kamera-Stream verbunden');
 
+    // Initial last timestamp from query parameter
     let lastTimestamp = req.query.since ? parseInt(req.query.since as string) : 0;
-    let blobCount = 0;
 
-    // Sende Blob-Daten (Base64)
+    // Method to send new blobs to client
     const sendBlobs = () => {
       try {
-        // Filtere nur neue Blobs
+        // Filter blobs that are newer than lastTimestamp
         const newBlobs = cameraBlobs.filter(blob => blob.timestamp > lastTimestamp);
         
+        // Send each new blob as SSE message
         if (newBlobs.length > 0) {
+
+          // Send each new blob
           newBlobs.forEach(({ data, timestamp }) => {
-            // Sende Base64-Daten, Frontend erstellt daraus eine Blob-URL
             const message = JSON.stringify({
               data: data,
               timestamp: timestamp
             });
+            // Send Data: message with ending newline
             res.write(`data: ${message}\n\n`);
             lastTimestamp = timestamp;
-            blobCount++;
           });
-          console.log(`Kamera-Stream: ${newBlobs.length} Blobs gesendet (total: ${blobCount})`);
         }
       } catch (error) {
-        console.error('SSE Fehler beim Senden von Blobs:', error);
+        console.error('SSE Error while sending blobs:', error);
       }
     };
 
-    // Initiale Blobs senden
+    // Send initial blobs
     sendBlobs();
 
-    // Prüfe alle 33ms (ca. 30 FPS) nach neuen Blobs
+    // Check for new blobs every 33ms (~30fps) and send to client
     const interval = setInterval(() => {
       if (req.socket.destroyed || req.closed) {
         clearInterval(interval);
@@ -80,45 +89,42 @@ export const setupCameraStreamEndpoint = (app: Express): void => {
       sendBlobs();
     }, 33);
 
-    // Cleanup bei Verbindungsabbruch
+    // Cleanup in case of client disconnect
     req.on('close', () => {
       clearInterval(interval);
-      console.log(`SSE Client für Kamera-Stream getrennt (${blobCount} Blobs gesendet)`);
+      console.log(`SSE Client for camera-stream discnnnected`);
       res.end();
     });
   });
 };
 
-// Automatische Subscription zum Kamera-Topic beim Server-Start
-const CAMERA_TOPIC = '/camera/color/image_raw/compressed';
-const CAMERA_MESSAGE_TYPE = 'sensor_msgs/msg/CompressedImage';
-
-// Warte auf ROS-Verbindung und subscribe dann zum Kamera-Topic
+/**
+ * Waits for ROS connection and subscribes to the camera topic
+ * @param rosClient The ROSClient instance
+ */
 export const setupCameraSubscription = (rosClient: ROSClient): void => {
   if (rosClient.isConnected) {
-    console.log(`Subscribing zu Kamera-Topic: ${CAMERA_TOPIC}`);
-    rosClient.subscribe(CAMERA_TOPIC, CAMERA_MESSAGE_TYPE, (message: any) => {
-      console.log(`[${CAMERA_TOPIC}] Kamera-Nachricht empfangen`);
+    console.log(`Subscribing to Camera-Topic`);
+    rosClient.subscribe('/camera/color/image_raw/compressed', "sensor_msgs/msg/CompressedImage", (message: any) => {
       handleCameraMessage(message);
     });
   } else {
-    // Warte auf Verbindung
+    // Wait for connection
     const checkConnection = setInterval(() => {
       if (rosClient.isConnected) {
         clearInterval(checkConnection);
-        console.log(`Subscribing zu Kamera-Topic: ${CAMERA_TOPIC}`);
-        rosClient.subscribe(CAMERA_TOPIC, CAMERA_MESSAGE_TYPE, (message: any) => {
-          console.log(`[${CAMERA_TOPIC}] Kamera-Nachricht empfangen`);
+        console.log(`Subscribing to Camera-Topic`);
+        rosClient.subscribe("/camera/color/image_raw/compressed", "sensor_msgs/msg/CompressedImage", (message: any) => {
           handleCameraMessage(message);
         });
       }
     }, 1000);
     
-    // Timeout nach 30 Sekunden
+    // Timeout after 30 seconds
     setTimeout(() => {
       clearInterval(checkConnection);
       if (!rosClient.isConnected) {
-        console.warn('ROS-Verbindung nicht hergestellt, Kamera-Subscription nicht möglich');
+        console.warn('⚠️ ROS Connection not established within 30 seconds, cannot subscribe to camera topic.');
       }
     }, 30000);
   }

@@ -177,7 +177,7 @@ function App() {
     <div className="app">
       <div className="app-layout">
         <div className="left-panel">
-          <h1>ROS2 Web Demo</h1>
+          <h1>Embodied AI Agent: Chat with your robot</h1>
           <div className="robot-image-container">
             {robotImageSrc ? (
               <img 

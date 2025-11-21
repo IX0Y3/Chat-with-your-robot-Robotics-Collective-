@@ -207,6 +207,11 @@ h1 {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  transition: flex 0.2s ease;
+}
+
+.log-container.collapsed {
+  flex: 0 0 auto;
 }
 
 .log-title {
@@ -215,6 +220,27 @@ h1 {
   font-size: 18px;
   flex-shrink: 0;
   font-weight: 600;
+}
+
+.collapsible-header {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.collapsible-header:hover {
+  background-color: #f3f4f6;
+}
+
+.collapse-icon {
+  font-size: 12px;
+  color: #6b7280;
+  transition: transform 0.2s;
 }
 
 .log {
@@ -256,11 +282,8 @@ h1 {
 }
 
 .robot-image-placeholder {
-  width: 100%;
-  max-width: 640px;
-  height: auto;
-  max-height: 480px;
-  aspect-ratio: 16 / 9;
+  width: 640px;
+  height: 480px;
   background-color: #000000;
   display: flex;
   align-items: center;

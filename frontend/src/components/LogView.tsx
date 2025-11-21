@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import '../App.css';
 import { ConnectionStatus } from './StatusView';
 
@@ -22,6 +22,7 @@ interface LogViewProps {
 }
 
 export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: LogViewProps) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const lastTimestampRef = useRef<number>(0);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -142,15 +143,25 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: Lo
   }, [isSubscribed]); // Only depend on isSubscribed
 
   return (
-    <div className="log-container">
-      {title && <h3 className="log-title">{title}</h3>}
-      <pre className="log">
-        {logs.length === 0 ? 'No logs...' : logs.map((log, index) => (
-          <div key={index}>
-            [{log.timestamp}] {log.message}
-          </div>
-        ))}
-      </pre>
+    <div className={`log-container ${isCollapsed ? 'collapsed' : ''}`}>
+      {title && (
+        <h3 
+          className="log-title collapsible-header" 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          <span className="collapse-icon">{isCollapsed ? '▶' : '▼'}</span>
+          {title}
+        </h3>
+      )}
+      {!isCollapsed && (
+        <pre className="log">
+          {logs.length === 0 ? 'No logs...' : logs.map((log, index) => (
+            <div key={index}>
+              [{log.timestamp}] {log.message}
+            </div>
+          ))}
+        </pre>
+      )}
     </div>
   );
 };

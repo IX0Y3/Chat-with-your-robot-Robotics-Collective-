@@ -111,7 +111,6 @@ export const setupCameraSubscription = (rosClient: ROSClient): void => {
   // Continuously try to subscribe while not connected
   const checkConnection = setInterval(() => {
     if (rosClient.isConnected && !isSubscribed) {
-      console.log('📷 Subscribing to camera topic...');
       rosClient.subscribe(cameraTopic, messageType, (message: any) => {
         handleCameraMessage(message);
       });

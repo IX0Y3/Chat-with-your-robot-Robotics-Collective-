@@ -59,8 +59,6 @@ server.listen(PORT, () => {
   console.log(`📡  GET /api/ros/camera-stream - Server-Sent Events stream for camera blobs`);
   console.log(`📡  WS /api/ros/logs-ws - WebSocket for log messages (real-time)`);
   console.log(`🐳  GET /api/docker/ps - Get Docker container list (JSON format)`);
-  console.log(`🐳  GET /api/docker/ps-all - Get all Docker containers (including stopped)`);
-  console.log(`🐳  POST /api/docker/start - Start a Docker container`);
   console.log(`🐳  POST /api/docker/stop - Stop a Docker container`);
 });
 

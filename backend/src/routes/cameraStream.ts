@@ -132,7 +132,7 @@ export const setupCameraSubscription = (rosClient: ROSClient): void => {
  * @returns Object with camera stream status information
  */
 export const getCameraStreamStatus = (): { isActive: boolean; lastMessageTime: number } => {
-  const CAMERA_TIMEOUT = 5000; // 5 seconds without messages = inactive
+  const CAMERA_TIMEOUT = 2000; // 2 seconds without messages = inactive
   const now = Date.now();
   const timeSinceLastMessage = now - lastCameraMessageTime;
   

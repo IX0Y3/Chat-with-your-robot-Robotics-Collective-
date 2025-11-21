@@ -65,8 +65,8 @@ function App() {
     // Fetch immediately
     fetchHealthStatus();
     
-    // Then fetch every 2 seconds
-    const interval = setInterval(fetchHealthStatus, 2000);
+    // Then fetch every 1 second for faster disconnect detection
+    const interval = setInterval(fetchHealthStatus, 1000);
     
     return () => clearInterval(interval);
   }, []);

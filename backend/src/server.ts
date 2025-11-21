@@ -7,6 +7,7 @@ import { setupCameraStreamEndpoint, setupCameraSubscription } from './routes/cam
 import { setupLogWebSocket } from './websocket/logWebSocket.js';
 import { setupSubscribeRoute } from './routes/subscribe.js';
 import { setupCommandRoute } from './routes/command.js';
+import { setupDockerRoute } from './routes/docker.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +48,7 @@ setupCameraSubscription(rosClient);
 // Setup routes
 setupSubscribeRoute(app, rosClient);
 setupCommandRoute(app, rosClient);
+setupDockerRoute(app);
 
 
 server.listen(PORT, () => {
@@ -56,5 +58,6 @@ server.listen(PORT, () => {
   console.log(`📡  POST /api/ros/command - Send command to ROS (publishes as ROS message)`);
   console.log(`📡  GET /api/ros/camera-stream - Server-Sent Events stream for camera blobs`);
   console.log(`📡  WS /api/ros/logs-ws - WebSocket for log messages (real-time)`);
+  console.log(`🐳  GET /api/docker/ps - Get Docker container list (JSON format)`);
 });
 

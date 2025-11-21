@@ -3,6 +3,7 @@ import './App.css';
 import { LogView, LogEntry } from './components/LogView';
 import { ResponseLogView } from './components/ResponseLogView';
 import { StatusView, ConnectionStatus } from './components/StatusView';
+import { DockerView } from './components/DockerView';
 
 function App() {
   const [streamStatus, setStreamStatus] = useState<ConnectionStatus>('disconnected');
@@ -251,6 +252,7 @@ function App() {
               onStatusChange={setLogStatus}
               title="System Logs"
             />
+            <DockerView />
           </div>
         </div>
       </div>

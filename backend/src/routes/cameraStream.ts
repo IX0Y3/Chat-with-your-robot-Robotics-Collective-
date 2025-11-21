@@ -100,26 +100,28 @@ export const setupCameraStreamEndpoint = (app: Express): void => {
 
 /**
  * Waits for ROS connection and subscribes to the camera topic
+ * Continuously tries to subscribe while not connected (handles reconnection)
  * @param rosClient The ROSClient instance
  */
 export const setupCameraSubscription = (rosClient: ROSClient): void => {
-    // Wait for connection
-    const checkConnection = setInterval(() => {
-      if (rosClient.isConnected) {
-        clearInterval(checkConnection);
-        rosClient.subscribe("/camera/color/image_raw/compressed", "sensor_msgs/msg/CompressedImage", (message: any) => {
-          handleCameraMessage(message);
-        });
-      }
-    }, 1000);
-    
-    // Timeout after 30 seconds
-    setTimeout(() => {
-      clearInterval(checkConnection);
-      if (!rosClient.isConnected) {
-        console.warn('⚠️ ROS Connection not established within 30 seconds, cannot subscribe to camera topic.');
-      }
-    }, 30000);
+  const cameraTopic = "/camera/color/image_raw/compressed";
+  const messageType = "sensor_msgs/msg/CompressedImage";
+  let isSubscribed = false;
+
+  // Continuously try to subscribe while not connected
+  const checkConnection = setInterval(() => {
+    if (rosClient.isConnected && !isSubscribed) {
+      console.log('📷 Subscribing to camera topic...');
+      rosClient.subscribe(cameraTopic, messageType, (message: any) => {
+        handleCameraMessage(message);
+      });
+      isSubscribed = true;
+    } else if (!rosClient.isConnected && isSubscribed) {
+      // Connection lost, reset subscription flag to retry
+      console.log('⚠️ ROS connection lost, will resubscribe when reconnected...');
+      isSubscribed = false;
+    }
+  }, 2000);
 };
 
 

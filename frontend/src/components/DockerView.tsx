@@ -25,12 +25,28 @@ export const DockerView = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [showAll, setShowAll] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchDockerContainers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/docker/ps');
+      const endpoint = showAll ? '/api/docker/ps-all' : '/api/docker/ps';
+      const response = await fetch(endpoint);
+      
+      // Check if response is ok and content type is JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got ${contentType}. Response: ${text.substring(0, 100)}`);
+      }
+
       const data: DockerResponse = await response.json();
 
       if (data.success && data.containers) {
@@ -48,6 +64,80 @@ export const DockerView = () => {
     }
   };
 
+  const handleStartContainer = async (containerId: string) => {
+    setActionLoading(containerId);
+    try {
+      const response = await fetch('/api/docker/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ containerId }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got ${contentType}. Response: ${text.substring(0, 100)}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh container list after successful start
+        await fetchDockerContainers();
+      } else {
+        setError(data.error || 'Failed to start container');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleStopContainer = async (containerId: string) => {
+    setActionLoading(containerId);
+    try {
+      const response = await fetch('/api/docker/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ containerId }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got ${contentType}. Response: ${text.substring(0, 100)}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh container list after successful stop
+        await fetchDockerContainers();
+      } else {
+        setError(data.error || 'Failed to stop container');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Fetch on mount and when expanded
   useEffect(() => {
     if (!isCollapsed) {
@@ -56,7 +146,7 @@ export const DockerView = () => {
       const interval = setInterval(fetchDockerContainers, 5000);
       return () => clearInterval(interval);
     }
-  }, [isCollapsed]);
+  }, [isCollapsed, showAll]);
 
   return (
     <div className={`log-container ${isCollapsed ? 'collapsed' : ''}`}>
@@ -82,38 +172,107 @@ export const DockerView = () => {
           )}
           {containers.length > 0 && (
             <>
-              {lastUpdate && (
-                <div style={{ 
-                  fontSize: '12px', 
-                  color: '#6b7280', 
-                  marginBottom: '12px',
-                  fontStyle: 'italic'
-                }}>
-                  Last updated: {lastUpdate}
-                </div>
-              )}
-              {containers.map((container, index) => (
-                <div 
-                  key={container.ID || index} 
-                  style={{ 
-                    marginBottom: '16px', 
-                    marginRight: '16px',
-                    padding: '12px', 
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    color: '#374151'
-                  }}
-                >
-                  <div style={{ fontSize: '14px', color: '#374151' }}>
-                    <span style={{ fontWeight: 'bold', color: '#1f2937' }}>{container.Names || 'Unnamed'}</span>
-                    {' '}(<span style={{ color: '#6b7280' }}>{container.ID?.substring(0, 12)}</span>)
-                    {' '}-{' '}
-                    <span style={{ color: container.Status?.includes('Up') ? '#22c55e' : '#ef4444' }}>{container.Status}</span>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: '12px'
+              }}>
+                {lastUpdate && (
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#6b7280', 
+                    fontStyle: 'italic'
+                  }}>
+                    Last updated: {lastUpdate}
                   </div>
-                </div>
-              ))}
+                )}
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  marginRight: '16px'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={showAll}
+                    onChange={(e) => setShowAll(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Show all (including stopped)
+                </label>
+              </div>
+              {containers.map((container, index) => {
+                const isRunning = container.Status?.includes('Up');
+                const isActionLoading = actionLoading === container.ID;
+                
+                return (
+                  <div 
+                    key={container.ID || index} 
+                    style={{ 
+                      marginBottom: '16px', 
+                      marginRight: '16px',
+                      padding: '12px', 
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      color: '#374151',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px'
+                    }}
+                  >
+                    <div style={{ fontSize: '14px', color: '#374151', flex: 1 }}>
+                      <span style={{ fontWeight: 'bold', color: '#1f2937' }}>{container.Names || 'Unnamed'}</span>
+                      {' '}(<span style={{ color: '#6b7280' }}>{container.ID?.substring(0, 12)}</span>)
+                      {' '}-{' '}
+                      <span style={{ color: isRunning ? '#22c55e' : '#ef4444' }}>{container.Status}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {!isRunning ? (
+                        <button
+                          onClick={() => handleStartContainer(container.ID)}
+                          disabled={isActionLoading}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            backgroundColor: '#22c55e',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: isActionLoading ? 'not-allowed' : 'pointer',
+                            opacity: isActionLoading ? 0.6 : 1
+                          }}
+                        >
+                          {isActionLoading ? '...' : 'Start'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleStopContainer(container.ID)}
+                          disabled={isActionLoading}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: isActionLoading ? 'not-allowed' : 'pointer',
+                            opacity: isActionLoading ? 0.6 : 1
+                          }}
+                        >
+                          {isActionLoading ? '...' : 'Stop'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </>
           )}
         </div>

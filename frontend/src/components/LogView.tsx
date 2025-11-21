@@ -25,6 +25,7 @@ export const LogView = ({ logs, isSubscribed, onLog, title }: LogViewProps) => {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
+  const logContainerRef = useRef<HTMLPreElement | null>(null);
 
   // WebSocket for log messages (not images) - more efficient than polling
   useEffect(() => {
@@ -134,6 +135,13 @@ export const LogView = ({ logs, isSubscribed, onLog, title }: LogViewProps) => {
     };
   }, [isSubscribed]); // Only depend on isSubscribed
 
+  // Auto-scroll to bottom when new logs arrive and not collapsed
+  useEffect(() => {
+    if (!isCollapsed && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs, isCollapsed]);
+
   return (
     <div className={`log-container ${isCollapsed ? 'collapsed' : ''}`}>
       {title && (
@@ -146,7 +154,7 @@ export const LogView = ({ logs, isSubscribed, onLog, title }: LogViewProps) => {
         </h3>
       )}
       {!isCollapsed && (
-        <pre className="log">
+        <pre className="log" ref={logContainerRef}>
           {logs.length === 0 ? 'No logs...' : logs.map((log, index) => (
             <div key={index}>
               [{log.timestamp}] {log.message}

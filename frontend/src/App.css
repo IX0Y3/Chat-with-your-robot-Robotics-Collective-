@@ -33,6 +33,14 @@
   overflow: hidden;
 }
 
+.logs-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+  overflow: hidden;
+}
+
 h1 {
   margin: 0;
   color: #333;
@@ -196,15 +204,17 @@ h1 {
 .log-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
-.log-container h2 {
-  margin-bottom: 12px;
+.log-title {
+  margin: 0 0 12px 0;
   color: #333;
   font-size: 18px;
   flex-shrink: 0;
+  font-weight: 600;
 }
 
 .log {
@@ -236,7 +246,8 @@ h1 {
 
 .robot-image {
   width: 100%;
-  max-width: 100%;
+  max-width: 640px;
+  max-height: 480px;
   height: auto;
   object-fit: contain;
   display: block;
@@ -246,9 +257,9 @@ h1 {
 
 .robot-image-placeholder {
   width: 100%;
-  max-width: 100%;
+  max-width: 640px;
   height: auto;
-  max-height: 700px;
+  max-height: 480px;
   aspect-ratio: 16 / 9;
   background-color: #000000;
   display: flex;

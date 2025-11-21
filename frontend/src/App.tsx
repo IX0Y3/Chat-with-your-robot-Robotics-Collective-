@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { LogView, LogEntry } from './components/LogView';
+import { ResponseLogView } from './components/ResponseLogView';
 import { StatusView, ConnectionStatus } from './components/StatusView';
 
 function App() {
   const [streamStatus, setStreamStatus] = useState<ConnectionStatus>('disconnected');
   const [commandStatus, setCommandStatus] = useState<ConnectionStatus>('disconnected');
   const [logStatus, setLogStatus] = useState<ConnectionStatus>('disconnected');
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [websocketLogs, setWebsocketLogs] = useState<LogEntry[]>([]);
+  const [responseLogs, setResponseLogs] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [robotImageSrc, setRobotImageSrc] = useState<string | null>(null);
@@ -16,9 +18,14 @@ function App() {
   const currentBlobUrlRef = useRef<string | null>(null); // For cleanup of blob URLs
   const hasSubscribedRef = useRef<boolean>(false); // Prevent double subscription in Strict Mode
 
-  const addLog = (message: string) => {
+  const addWebsocketLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setLogs((prev) => [...prev, { timestamp, message }]);
+    setWebsocketLogs((prev) => [...prev, { timestamp, message }]);
+  };
+
+  const addResponseLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setResponseLogs((prev) => [...prev, { timestamp, message }]);
   };
 
   const handleImageChange = useCallback((newSrc: string | null) => {
@@ -27,7 +34,8 @@ function App() {
 
   // Clear logs on component mount (page reload)
   useEffect(() => {
-    setLogs([]);
+    setWebsocketLogs([]);
+    setResponseLogs([]);
   }, []);
   
 
@@ -35,12 +43,12 @@ function App() {
   // Starts immediately on component mount (camera subscription is automatic in backend)
   useEffect(() => {
     setStreamStatus('connecting');
-    addLog('🔄 Connecting to camera stream...');
+    addResponseLog('🔄 Connecting to camera stream...');
     const eventSource = new EventSource(`/api/ros/camera-stream?since=${lastTimestampRef.current}`);
 
     eventSource.onopen = () => {
       setStreamStatus('connected');
-      addLog('✅ Camera stream connected');
+      addResponseLog('✅ Camera stream connected');
     };
 
     eventSource.onmessage = (event) => {
@@ -80,12 +88,12 @@ function App() {
     eventSource.onerror = (error) => {
       console.error('Camera stream error:', error);
       setStreamStatus('error');
-      addLog('⚠️ Connection error to camera stream');
+      addResponseLog('⚠️ Connection error to camera stream');
     };
 
     return () => {
       setStreamStatus('disconnected');
-      addLog('🔌 Camera stream disconnected');
+      addResponseLog('🔌 Camera stream disconnected');
       eventSource.close();
       // Cleanup blob URL on unmount
       if (currentBlobUrlRef.current) {
@@ -106,7 +114,7 @@ function App() {
     const subscribeToRosout = async () => {
       setIsLoading(true);
       setCommandStatus('connecting');
-      addLog('🔄 Auto-subscribing to /rosout...');
+      addResponseLog('🔄 Auto-subscribing to /rosout...');
 
       try {
         const response = await fetch('/api/ros/subscribe', {
@@ -125,15 +133,15 @@ function App() {
         if (response.ok) {
           setCommandStatus('connected');
           setIsSubscribed(true);
-          addLog(`✅ ${data.message}`);
+          addResponseLog(`✅ ${data.message}`);
         } else {
           setCommandStatus('error');
           setIsSubscribed(false);
-          addLog(`❌ Error: ${data.error}`);
+          addResponseLog(`❌ Error: ${data.error}`);
         }
       } catch (error) {
         setCommandStatus('error');
-        addLog(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+        addResponseLog(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsLoading(false);
       }
@@ -150,7 +158,7 @@ function App() {
 
     const command = commandInput.trim();
     setCommandInput('');
-    addLog(`📤 Sending command: ${command}`);
+    addResponseLog(`📤 Sending command: ${command}`);
 
     try {
       const response = await fetch('/api/ros/command', {
@@ -164,12 +172,12 @@ function App() {
       const data = await response.json();
 
       if (response.ok) {
-        addLog(`✅ ${data.message}`);
+        addResponseLog(`✅ ${data.message}`);
       } else {
-        addLog(`❌ Error: ${data.error || 'Unknown error'}`);
+        addResponseLog(`❌ Error: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
-      addLog(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
+      addResponseLog(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -234,12 +242,16 @@ function App() {
         </div>
 
         <div className="right-panel">
-          <LogView 
-            logs={logs} 
-            isSubscribed={isSubscribed} 
-            onLog={addLog}
-            onStatusChange={setLogStatus}
-          />
+          <div className="logs-container">
+            <ResponseLogView logs={responseLogs} />
+            <LogView 
+              logs={websocketLogs} 
+              isSubscribed={isSubscribed} 
+              onLog={addWebsocketLog}
+              onStatusChange={setLogStatus}
+              title="System Logs"
+            />
+          </div>
         </div>
       </div>
     </div>

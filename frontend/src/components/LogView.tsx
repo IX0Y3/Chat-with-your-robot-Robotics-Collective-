@@ -18,9 +18,10 @@ interface LogViewProps {
   isSubscribed: boolean;
   onLog: (message: string) => void;
   onStatusChange: (status: ConnectionStatus) => void;
+  title?: string;
 }
 
-export const LogView = ({ logs, isSubscribed, onLog, onStatusChange }: LogViewProps) => {
+export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: LogViewProps) => {
   const lastTimestampRef = useRef<number>(0);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -142,6 +143,7 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange }: LogViewPr
 
   return (
     <div className="log-container">
+      {title && <h3 className="log-title">{title}</h3>}
       <pre className="log">
         {logs.length === 0 ? 'No logs...' : logs.map((log, index) => (
           <div key={index}>

@@ -91,10 +91,6 @@ h1 {
 }
 
 .status-disconnected {
-  color: #6b7280;
-}
-
-.status-error {
   color: #ef4444;
 }
 

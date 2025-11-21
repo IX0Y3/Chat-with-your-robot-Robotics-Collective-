@@ -66,3 +66,14 @@ export const sendMessageToClients = (topic: string, message: any, timestamp: num
   });
 };
 
+/**
+ * Get WebSocket server status for health check
+ * @returns Object with WebSocket status information
+ */
+export const getWebSocketStatus = (): { hasClients: boolean; clientCount: number } => {
+  return {
+    hasClients: logClients.size > 0,
+    clientCount: logClients.size
+  };
+};
+

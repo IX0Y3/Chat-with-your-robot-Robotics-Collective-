@@ -1,6 +1,6 @@
 import '../App.css';
 
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
 interface StatusItem {
   label: string;
@@ -26,7 +26,7 @@ export const StatusView = ({ streamStatus, commandStatus, logStatus }: StatusVie
         return '#22c55e'; // green
       case 'connecting':
         return '#f59e0b'; // amber
-      case 'error':
+      case 'disconnected':
         return '#ef4444'; // red
       default:
         return '#6b7280'; // gray

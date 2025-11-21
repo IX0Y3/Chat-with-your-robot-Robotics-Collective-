@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import '../App.css';
-import { ConnectionStatus } from './StatusView';
 
 export interface LogEntry {
   timestamp: string;
@@ -17,11 +16,10 @@ interface LogViewProps {
   logs: LogEntry[];
   isSubscribed: boolean;
   onLog: (message: string) => void;
-  onStatusChange: (status: ConnectionStatus) => void;
   title?: string;
 }
 
-export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: LogViewProps) => {
+export const LogView = ({ logs, isSubscribed, onLog, title }: LogViewProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const lastTimestampRef = useRef<number>(0);
   const wsRef = useRef<WebSocket | null>(null);
@@ -31,7 +29,6 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: Lo
   // WebSocket for log messages (not images) - more efficient than polling
   useEffect(() => {
     if (!isSubscribed) {
-      onStatusChange('disconnected');
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -55,7 +52,6 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: Lo
         wsRef.current = null;
       }
 
-      onStatusChange('connecting');
       if (reconnectAttemptsRef.current === 0) {
         onLog('🔄 Connecting to WebSocket for logs...');
       }
@@ -68,7 +64,6 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: Lo
 
       ws.onopen = () => {
         reconnectAttemptsRef.current = 0;
-        onStatusChange('connected');
         onLog('✅ WebSocket for logs connected');
       };
 
@@ -97,14 +92,12 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: Lo
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
-        onStatusChange('error');
         if (reconnectAttemptsRef.current === 0) {
           onLog('⚠️ WebSocket error for logs');
         }
       };
 
       ws.onclose = () => {
-        onStatusChange('disconnected');
         wsRef.current = null;
         
         // Only log disconnect if it wasn't intentional
@@ -137,7 +130,6 @@ export const LogView = ({ logs, isSubscribed, onLog, onStatusChange, title }: Lo
         wsRef.current.close();
         wsRef.current = null;
       }
-      onStatusChange('disconnected');
       reconnectAttemptsRef.current = 0;
     };
   }, [isSubscribed]); // Only depend on isSubscribed

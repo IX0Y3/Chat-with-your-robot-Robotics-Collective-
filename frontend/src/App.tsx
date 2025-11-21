@@ -38,17 +38,46 @@ function App() {
     setWebsocketLogs([]);
     setResponseLogs([]);
   }, []);
-  
+
+  // Health check - fetch status from backend periodically
+  useEffect(() => {
+    const fetchHealthStatus = async () => {
+      try {
+        const response = await fetch('/api/health');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.status) {
+            // Update status states from backend
+            setStreamStatus(data.status.stream);
+            setCommandStatus(data.status.command);
+            setLogStatus(data.status.log);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching health status:', error);
+        // On error, set all to disconnected
+        setStreamStatus('disconnected');
+        setCommandStatus('disconnected');
+        setLogStatus('disconnected');
+      }
+    };
+
+    // Fetch immediately
+    fetchHealthStatus();
+    
+    // Then fetch every 2 seconds
+    const interval = setInterval(fetchHealthStatus, 2000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Dedicated Server-Sent Events (SSE) stream for camera blobs
   // Starts immediately on component mount (camera subscription is automatic in backend)
   useEffect(() => {
-    setStreamStatus('connecting');
     addResponseLog('🔄 Connecting to camera stream...');
     const eventSource = new EventSource(`/api/ros/camera-stream?since=${lastTimestampRef.current}`);
 
     eventSource.onopen = () => {
-      setStreamStatus('connected');
       addResponseLog('✅ Camera stream connected');
     };
 
@@ -88,12 +117,10 @@ function App() {
 
     eventSource.onerror = (error) => {
       console.error('Camera stream error:', error);
-      setStreamStatus('error');
       addResponseLog('⚠️ Connection error to camera stream');
     };
 
     return () => {
-      setStreamStatus('disconnected');
       addResponseLog('🔌 Camera stream disconnected');
       eventSource.close();
       // Cleanup blob URL on unmount
@@ -114,7 +141,6 @@ function App() {
 
     const subscribeToRosout = async () => {
       setIsLoading(true);
-      setCommandStatus('connecting');
       addResponseLog('🔄 Auto-subscribing to /rosout...');
 
       try {
@@ -132,16 +158,13 @@ function App() {
         const data = await response.json();
 
         if (response.ok) {
-          setCommandStatus('connected');
           setIsSubscribed(true);
           addResponseLog(`✅ ${data.message}`);
         } else {
-          setCommandStatus('error');
           setIsSubscribed(false);
           addResponseLog(`❌ Error: ${data.error}`);
         }
       } catch (error) {
-        setCommandStatus('error');
         addResponseLog(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setIsLoading(false);
@@ -249,7 +272,6 @@ function App() {
               logs={websocketLogs} 
               isSubscribed={isSubscribed} 
               onLog={addWebsocketLog}
-              onStatusChange={setLogStatus}
               title="System Logs"
             />
             <DockerView />

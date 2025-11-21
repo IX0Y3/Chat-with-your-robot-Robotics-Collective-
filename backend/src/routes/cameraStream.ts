@@ -4,6 +4,9 @@ import { ROSClient } from '../ros/rosClient.js';
 // Define a buffer to store recent camera blobs
 const cameraBlobs: Array<{ data: string; timestamp: number }> = [];
 
+// Track last camera message timestamp for health check
+let lastCameraMessageTime: number = 0;
+
 /**
  * Handle messages from the camera topic and store them in the buffer.
  * @param message Message received from the camera topic
@@ -24,6 +27,7 @@ export const handleCameraMessage = (message: any): void => {
   // Store the Base64 string with a timestamp
   const timestamp = Date.now();
   cameraBlobs.push({ data: base64Data, timestamp });
+  lastCameraMessageTime = timestamp;
   
   // Limit buffer size to last 10 blobs
   // This is to prevent excessive memory usage
@@ -123,4 +127,18 @@ export const setupCameraSubscription = (rosClient: ROSClient): void => {
   }, 2000);
 };
 
+/**
+ * Get camera stream status for health check
+ * @returns Object with camera stream status information
+ */
+export const getCameraStreamStatus = (): { isActive: boolean; lastMessageTime: number } => {
+  const CAMERA_TIMEOUT = 5000; // 5 seconds without messages = inactive
+  const now = Date.now();
+  const timeSinceLastMessage = now - lastCameraMessageTime;
+  
+  return {
+    isActive: lastCameraMessageTime > 0 && timeSinceLastMessage < CAMERA_TIMEOUT,
+    lastMessageTime: lastCameraMessageTime
+  };
+};
 

@@ -99,44 +99,44 @@ Open your browser and navigate to `http://localhost:5173`
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Browser                               │
+│                        Browser                              │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │              React Frontend                          │   │
-│  │  (http://localhost:5173)                            │   │
-│  │                                                       │   │
+│  │  (http://localhost:5173)                             │   │
+│  │                                                      │   │
 │  │  • Camera Stream (SSE)                               │   │
 │  │  • Command Interface                                 │   │
 │  │  • WebSocket Logs                                    │   │
 │  │  • Status Monitoring                                 │   │
-│  └───────────────┬─────────────────────────────────────┘   │
+│  └───────────────┬──────────────────────────────────────┘   │
 └──────────────────┼──────────────────────────────────────────┘
                    │ HTTP/WebSocket/SSE
                    │
 ┌──────────────────▼──────────────────────────────────────────┐
-│              Express Backend Server                          │
-│         (http://localhost:3000)                              │
-│                                                              │
+│              Express Backend Server                         │
+│         (http://localhost:3000)                             │
+│                                                             │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │              ROS Client (roslib)                     │   │
 │  │  • Topic Subscription                                │   │
 │  │  • Message Publishing                                │   │
 │  │  • Connection Management                             │   │
-│  └───────────────┬─────────────────────────────────────┘   │
+│  └───────────────┬──────────────────────────────────────┘   │
 └──────────────────┼──────────────────────────────────────────┘
                    │ WebSocket (ws://localhost:9090)
                    │
 ┌──────────────────▼──────────────────────────────────────────┐
-│            ROS2 Web Bridge                                   │
+│            ROS2 Web Bridge                                  │
 │         (ws://localhost:9090)                               │
 └──────────────────┬──────────────────────────────────────────┘
                    │ ROS2 DDS
                    │
 ┌──────────────────▼──────────────────────────────────────────┐
-│              ROS2 Topics (Kinova)                            │
+│              ROS2 Topics (Kinova)                           │
 │  • /camera/color/image_raw/compressed                       │
-│  • /rosout                                                   │
-│  • /transcription_text                                       │
-│                                                              │
+│  • /rosout                                                  │
+│  • /transcription_text                                      │
+│                                                             │
 │  Note: Topics can be customized for other robots            │
 └─────────────────────────────────────────────────────────────┘
 ```

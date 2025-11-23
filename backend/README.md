@@ -9,6 +9,9 @@ TypeScript Backend for Embodied AI Web Interface - Connects a web application wi
 - **ros2-web-bridge** driver
     - The `rosbridge` must be running on `ws://localhost:9090`
 - **ROS2** standard installation
+- **Docker** (optional)
+    - Required for Docker container management features
+    - Must be accessible from the backend server
 
 ## Tech Stack
 
@@ -42,6 +45,116 @@ npm start
 **Important**: Make sure the ROS2 `rosbridge` is running before starting the backend server:
 
 ## API Endpoints
+
+### GET `/api/health`
+
+Health check endpoint that provides status information for all connections.
+
+**Response:**
+```json
+{
+  "success": true,
+  "status": {
+    "stream": "connected",
+    "log": "connected",
+    "command": "connected"
+  },
+  "details": {
+    "ros": {
+      "connected": true
+    },
+    "camera": {
+      "active": true,
+      "lastMessageTime": 1234567890
+    },
+    "websocket": {
+      "hasClients": true,
+      "clientCount": 1
+    }
+  }
+}
+```
+
+**Status Values:**
+- `connected`: Connection is active and working
+- `connecting`: Connection is being established
+- `disconnected`: No connection
+
+**Description:**
+- Provides real-time status for all system connections
+- Monitors ROS connection, camera stream, and WebSocket clients
+- Used by frontend for connection status indicators
+- Includes detailed information about each component
+
+---
+
+### GET `/api/docker/ps`
+
+Lists all running Docker containers.
+
+**Response:**
+```json
+{
+  "success": true,
+  "containers": [
+    {
+      "ID": "abc123def456",
+      "Image": "ubuntu:latest",
+      "Command": "/bin/bash",
+      "CreatedAt": "2025-01-15 10:30:00",
+      "Status": "Up 2 hours",
+      "Ports": "8080->80/tcp",
+      "Names": "my-container"
+    }
+  ],
+  "count": 1
+}
+```
+
+**Errors:**
+- `503`: Docker is not available or not installed
+- `500`: Failed to execute docker ps
+
+**Description:**
+- Executes `docker ps` command and returns structured JSON output
+- Provides information about all running containers
+- Automatically parses Docker output into JSON format
+- Used by frontend Docker management interface
+
+---
+
+### POST `/api/docker/stop`
+
+Stops a running Docker container.
+
+**Request Body:**
+```json
+{
+  "containerId": "abc123def456"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Container abc123def456 stopped successfully",
+  "output": "abc123def456"
+}
+```
+
+**Errors:**
+- `400`: containerId missing or not a string
+- `503`: Docker is not available or not installed
+- `500`: Failed to stop container
+
+**Description:**
+- Stops a Docker container by ID or name
+- Executes `docker stop` command
+- Returns success confirmation
+- Used by frontend for container management
+
+---
 
 ### POST `/api/ros/subscribe`
 
@@ -197,7 +310,9 @@ backend/
 │   ├── routes/
 │   │   ├── subscribe.ts          # Subscribe Endpoint
 │   │   ├── command.ts            # Command Endpoint
-│   │   └── cameraStream.ts       # Camera SSE Stream
+│   │   ├── cameraStream.ts       # Camera SSE Stream
+│   │   ├── health.ts             # Health Check Endpoint
+│   │   └── docker.ts             # Docker Management Endpoints
 │   ├── websocket/
 │   │   └── logWebSocket.ts      # WebSocket for Logs
 │   ├── utils/

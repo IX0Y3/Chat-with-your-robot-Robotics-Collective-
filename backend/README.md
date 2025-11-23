@@ -276,7 +276,7 @@ ws://localhost:3000/api/ros/logs-ws
 └──────┬──────┘
        │ HTTP/WS
        │
-┌──────▼──────────────────┐
+┌──────▼───────────────────┐
 │   Express Server         │
 │   (Port 3000)            │
 │                          │
@@ -288,15 +288,15 @@ ws://localhost:3000/api/ros/logs-ws
              │ WebSocket
              │
 ┌────────────▼─────────────┐
-│   ROS2 Bridge Server    │
-│   (Port 9090)           │
+│   ROS2 Bridge Server     │
+│   (Port 9090)            │
 └────────────┬─────────────┘
              │
 ┌────────────▼─────────────┐
-│      ROS2 Topics        │
-│  - /rosout              │
+│      ROS2 Topics         │
+│  - /rosout               │
 │  - /transcription_text   │
-│  - /camera/...          │
+│  - /camera/...           │
 └──────────────────────────┘
 ```
 

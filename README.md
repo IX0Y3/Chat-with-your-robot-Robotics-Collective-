@@ -29,10 +29,17 @@ The system features real-time camera streaming, command execution, and comprehen
 - Collapsible log sections for better organization
 - Automatic message formatting based on topic type
 
+### Docker Container Management
+- Real-time view of running Docker containers
+- Monitor container status and health
+- Stop containers directly from the interface
+- Auto-refresh every 5 seconds
+
 ### Connection Status Monitoring
 - Visual indicators for Stream, Command, and Log connections
 - Color-coded status (connected, connecting, error, disconnected)
-- Real-time status updates
+- Real-time status updates via health endpoint
+- Automatic polling for connection health
 
 ## Requirements
 
@@ -41,6 +48,8 @@ The system features real-time camera streaming, command execution, and comprehen
 - **ros2-web-bridge** driver
   - Must be running on `ws://localhost:9090`
   - Provides WebSocket bridge to ROS2 topics
+- **Docker** (optional, for container management features)
+  - Required for Docker container monitoring and control
 
 ### Backend
 - **Node.js** (Version 18 or higher)
@@ -178,6 +187,9 @@ ROS2 Topic → Backend ROS Client → Message Storage → WebSocket Server
 #### REST API
 - `POST /api/ros/subscribe` - Subscribe to ROS2 topics
 - `POST /api/ros/command` - Send commands to robot
+- `GET /api/health` - Health check and connection status
+- `GET /api/docker/ps` - List running Docker containers
+- `POST /api/docker/stop` - Stop a Docker container
 
 #### Real-time Streams
 - `GET /api/ros/camera-stream` - Server-Sent Events for camera images
@@ -194,7 +206,9 @@ ROS2 Topic → Backend ROS Client → Message Storage → WebSocket Server
 │   │   ├── routes/
 │   │   │   ├── subscribe.ts          # Subscribe endpoint
 │   │   │   ├── command.ts            # Command endpoint
-│   │   │   └── cameraStream.ts       # Camera SSE stream
+│   │   │   ├── cameraStream.ts       # Camera SSE stream
+│   │   │   ├── health.ts             # Health check endpoint
+│   │   │   └── docker.ts             # Docker management endpoints
 │   │   ├── websocket/
 │   │   │   └── logWebSocket.ts      # WebSocket server
 │   │   ├── utils/
@@ -207,7 +221,8 @@ ROS2 Topic → Backend ROS Client → Message Storage → WebSocket Server
 │   │   ├── components/
 │   │   │   ├── LogView.tsx           # WebSocket log viewer
 │   │   │   ├── ResponseLogView.tsx   # API response viewer
-│   │   │   └── StatusView.tsx        # Status indicators
+│   │   │   ├── StatusView.tsx        # Status indicators
+│   │   │   └── DockerView.tsx        # Docker container viewer
 │   │   ├── App.tsx                   # Main application
 │   │   ├── App.css                   # Application styles
 │   │   └── main.tsx                  # Entry point

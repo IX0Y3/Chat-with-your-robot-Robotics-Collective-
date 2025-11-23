@@ -59,12 +59,20 @@ The application will be available at `http://localhost:5173`.
   - Error messages
   - Collapsible interface
 
+### Docker Container Management
+- Real-time monitoring of running Docker containers
+- Container status and health information
+- Stop containers directly from the interface
+- Auto-refresh every 5 seconds when panel is open
+- Collapsible interface with container count
+
 ### Connection Status
 - Visual status indicators for:
   - **Stream**: Camera stream connection status
   - **Command**: ROS command connection status
   - **Log**: WebSocket log connection status
 - Color-coded status (green: connected, amber: connecting, red: error, gray: disconnected)
+- Automatic polling of health endpoint for real-time updates
 
 ## Project Structure
 
@@ -74,7 +82,8 @@ frontend/
 │   ├── components/
 │   │   ├── LogView.tsx           # WebSocket log viewer component
 │   │   ├── ResponseLogView.tsx    # API response log viewer component
-│   │   └── StatusView.tsx         # Connection status display
+│   │   ├── StatusView.tsx         # Connection status display
+│   │   └── DockerView.tsx         # Docker container management
 │   ├── App.tsx                    # Main application component
 │   ├── App.css                    # Application styles
 │   ├── index.css                  # Global styles
@@ -96,6 +105,7 @@ Main application component that manages:
 - Command input handling
 - Log management (WebSocket and API responses)
 - Automatic subscription to `/rosout` topic on mount
+- Health check polling for connection status
 
 ### LogView.tsx
 Component for displaying WebSocket messages:
@@ -118,7 +128,16 @@ Component for displaying API responses:
 Component for displaying connection status:
 - Visual status indicators
 - Color-coded status display
-- Real-time status updates
+- Real-time status updates from health endpoint
+
+### DockerView.tsx
+Component for Docker container management:
+- Lists all running Docker containers
+- Displays container ID, name, status, and ports
+- Provides stop button for running containers
+- Auto-refresh every 5 seconds when expanded
+- Collapsible interface
+- Error handling for Docker availability
 
 ## API Integration
 
@@ -139,6 +158,9 @@ Component for displaying connection status:
 ### REST API
 - **POST /api/ros/subscribe**: Subscribe to ROS2 topics
 - **POST /api/ros/command**: Send commands to robot
+- **GET /api/health**: Health check and connection status
+- **GET /api/docker/ps**: List running Docker containers
+- **POST /api/docker/stop**: Stop a Docker container
 - **Proxy Configuration**: All `/api` requests are proxied to `http://localhost:3000`
 
 ## Vite Configuration
@@ -162,5 +184,7 @@ The Vite configuration includes:
 - The frontend automatically connects to the backend on startup
 - Camera stream starts immediately on component mount
 - `/rosout` topic subscription happens automatically
+- Health endpoint is polled every 2 seconds for connection status
+- Docker view auto-refreshes every 5 seconds when expanded
 - Logs are cleared on page reload
 - All timestamps use local time format

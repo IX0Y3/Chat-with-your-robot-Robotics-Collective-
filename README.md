@@ -141,6 +141,7 @@ Open your browser and navigate to `http://localhost:5173`
 └─────────────────────────────────────────────────────────────┘
 ```
 
+
 ### Component Architecture
 
 #### Frontend Layer
